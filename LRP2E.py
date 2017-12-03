@@ -158,88 +158,58 @@ class VRP2E:
         temp_li = [customer_satisfaction_dic[i][1] for i in customer_satisfaction_dic]
         return(np.sum(temp_li), np.var(temp_li))
 
-    def diversity_value(self, ind):
-        return()
-
-    def valuation_value(self, ind):
-        return()
-
     def crossover(self, ind0, ind1):
         assignment0, assignment1 = ind0[0], ind1[0]
-        cross_start, cross_end = sorted([random.randint(0, len(assignment0[0]) - 1),
-                                         random.randint(0, len(assignment0[0]) - 1)])
-
-        for i in range(0, len(assignment0)):  # crossover row of [satellite, depot1, depot2, ...]
-            assignment0[i][cross_start:cross_end], assignment1[i][cross_start:cross_end] \
-          = assignment1[i][cross_start:cross_end], assignment0[i][cross_start:cross_end]
-
-        # crossover of delivery amount
-
-
-
-        # crossover of rout structure
-
-
-
-
+        customer_order = [key for key in assignment0]
+        cross_start, cross_end = sorted([random.randint(0, len(customer_order) - 1),
+                                         random.randint(0, len(customer_order) - 1)])
+        cross_points = customer_order[cross_start:cross_end + 1]
+        for point in cross_points:
+            assignment0[point], assignment1[point] = assignment1[point], assignment0[point]
 
         depot_satellite_rout_0 = self.depot_satellite_rout(assignment0)
         depot_satellite_rout_1 = self.depot_satellite_rout(assignment1)
         satellite_customer_rout_0 = self.satellite_customer_rout(assignment0)
         satellite_customer_rout_1 = self.satellite_customer_rout(assignment1)
-
         ind0_son = [assignment0, depot_satellite_rout_0, satellite_customer_rout_0]
         ind1_son = [assignment1, depot_satellite_rout_1, satellite_customer_rout_1]
-
         return(ind0_son, ind1_son)
 
-    def mutation(self, ind0, pop):
-        # mutation of delivery amount
-        ind1, ind2 = random.choice(pop), random.choice(pop)
-        assignment0, assignment1, assignment2 = ind0[0], ind1[0], ind2[0]
-        mut_start, mut_end = sorted([random.randint(0, len(assignment0[0]) - 1),
-                                     random.randint(0, len(assignment0[0]) - 1)])
-        mut_start, mut_end = 0, len(assignment0[0])
+    def mutation(self, ind, pop, pop_best=[], archive_best=[], f=0.05):
+        pop_best, archive_best = random.choice(pop), random.choice(pop)  # just for test
 
-        new_assignment = assignment0[:]
-        for i in range(2, len(new_assignment)):
-            weigh_diff_vector = list(map(lambda x: self.f * (x[0] - x[1]),
-                                   zip(assignment1[i][mut_start:mut_end], assignment2[i][mut_start:mut_end])))
-            new_assignment[i][mut_start:mut_end] = list(map(lambda x: x[0] + x[1],
-                                                            zip(new_assignment[i][mut_start:mut_end], weigh_diff_vector)))
+        ind1_assignment, ind2_assignment = random.choice(pop)[0], random.choice(pop)[0]
+        pop_best_assignment, archive_best_assignment = pop_best[0], archive_best[0]
+        ind_assignment = ind[0]
+        new_assignment = OrderedDict({key: ind_assignment[key][:] for key in ind_assignment})
+
+        # mutation of delivery amount --> follow the method of Wang(2016)(8)
+        for key in new_assignment:
+            for i in range(1, len(new_assignment[key])):
+                new_assignment[key][i] = ind_assignment[key][i] \
+                                         + f * (pop_best_assignment[key][i] - ind_assignment[key][i]) \
+                                         + f * (ind1_assignment[key][i] - ind2_assignment[key][i]) \
+                                         + f * (archive_best_assignment[key][i] - ind_assignment[key][i])
+
+        # mutation of rout structure --> reverse the satellite order in assignment chromosome
+        satellite_order = [new_assignment[key][0] for key in new_assignment]
+        for key in new_assignment:
+            new_assignment[key][0] = satellite_order[-1]
+            satellite_order.pop()
 
         depot_satellite_rout = self.depot_satellite_rout(new_assignment)
         satellite_customer_rout = self.satellite_customer_rout(new_assignment)
         new_ind = [new_assignment, depot_satellite_rout, satellite_customer_rout]
-        print(new_assignment[-1])
-
-        # mutation of rout structure
-        # ? ? ?
-
         return(new_ind)
 
-    def education(self, ind):
-        # M1
-
-        # M2
-
-        new_ind = []
-        return(new_ind)
-
-    def single_objective_evolution(self, func):
-
+    def single_objective_evolution(self, func, pop):
+        # input: population & evaluate function
+        # output: the best feasible individual & offspring population
         return()
 
     def multi_objective_evolution(self):
 
         return()
-
-    def dic_to_list(self, assign_dic):
-        assign_li = [[key for key in assign_dic]]
-        for i in range(len(self.depot) + 1):
-            temp_li = [assign_dic[key][i] for key in assign_dic]
-            assign_li.append(temp_li)
-        return(assign_li)
 
 
 def timer(func):
@@ -254,20 +224,8 @@ def timer(func):
 def main():
     v = VRP2E()
     pop = v.rand_pop()
-    for ind in pop:
-        print(ind[0])
-
-
-
-    # # test assignment_dict assignment_list
-    # for ind in pop:
-    #     assign_dic = ind[0]
-    #     assign_li = v.dic_to_list(assign_dic)
-    #     if v.depot_satellite_rout(assign_dic) == v.depot_satellite_rout(assign_li):
-    #         pass
-    #     if v.satellite_customer_rout(assign_dic) == v.satellite_customer_rout(assign_li):
-    #         pass
-
+    for pair in itertools.combinations(pop, 1):
+        v.mutation(pair[0], pop)
 
 
 if __name__ == '__main__':
