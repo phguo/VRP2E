@@ -40,50 +40,26 @@ class VRP2E:
         self.mutt_prob = 0.05
 
     def satellite_production_amount(self, assignment):
-        if type(assignment) == list:
-            result_dic = {i: [0] * len(self.depot) for i in self.satellite}
-            for i in self.satellite:
-                for j in range(len(assignment[1])):
-                    if i == assignment[1][j]:
-                        for p in range(len(self.depot)):
-                            result_dic[i][p] += assignment[p + 2][j]
-        else:
-            result_dic = {i: [0] * len(self.depot) for i in self.satellite}
-            for i in self.satellite:
-                for key in assignment:
-                    if i == assignment[key][0]:
-                        for p in range(len(self.depot)):
-                            result_dic[i][p] += assignment[key][p + 1]
-
+        result_dic = {i: [0] * len(self.depot) for i in self.satellite}
+        for i in self.satellite:
+            for key in assignment:
+                if i == assignment[key][0]:
+                    for p in range(len(self.depot)):
+                        result_dic[i][p] += assignment[key][p + 1]
         return(result_dic)
 
     def customer_production_total(self, assignment):
-        if type(assignment) == list:
-            result_dic = {i: 0 for i in self.customer}
-            for i in range(len(assignment[0])):
-                for p in range(len(self.depot)):
-                    result_dic[assignment[0][i]] += assignment[p + 2][i]
-        else:
-            result_dic = {i: np.sum(assignment[i][1:]) for i in self.customer}
-
+        result_dic = {i: np.sum(assignment[i][1:]) for i in self.customer}
         return(result_dic)
 
     def depot_satellite_rout(self, assignment):
         # route depot -> satellite is generated according to the assignment.
         spa = self.satellite_production_amount(assignment)
-        if type(assignment) == list:
-            satellite_li = []
-            for a in assignment[1]:
-                if a not in satellite_li:
-                    satellite_li.append(a)
-        
-        else:
-            satellite_li = []
-            for key in assignment:
-                s = assignment[key][0]
-                if s not in satellite_li:
-                    satellite_li.append(s)
-
+        satellite_li = []
+        for key in assignment:
+            s = assignment[key][0]
+            if s not in satellite_li:
+                satellite_li.append(s)
 
         depot_satellite_rout = []
         for depot in self.depot:
@@ -99,26 +75,17 @@ class VRP2E:
                     temp_cap = spa[satellite][depot]
                     depot_satellite_rout.append(depot)  # ('*')
                     depot_satellite_rout.append(satellite)
-
         return(depot_satellite_rout)
 
     def satellite_customer_rout(self, assignment):
         # route satellite -> customer is generated according to the assignment.
         cpt = self.customer_production_total(assignment)
-        if type(assignment) == list:
-            satellite_customer_assignment = {stl: [] for stl in self.satellite}
-            for stl in self.satellite:
-                for i in range(len(assignment[1])):
-                    if stl == assignment[1][i]:
-                        satellite_customer_assignment[stl].append(assignment[0][i])
-        
-        else:
-            satellite_customer_assignment = {stl: [] for stl in self.satellite}
-            for stl in self.satellite:
-                for key in assignment:
-                    if stl == assignment[key][0]:
-                        satellite_customer_assignment[stl].append(key)
 
+        satellite_customer_assignment = {stl: [] for stl in self.satellite}
+        for stl in self.satellite:
+            for key in assignment:
+                if stl == assignment[key][0]:
+                    satellite_customer_assignment[stl].append(key)
 
         satellite_customer_rout = []
         for stl in self.satellite:
@@ -135,31 +102,22 @@ class VRP2E:
                     satellite_customer_rout.append(cst)
         return(satellite_customer_rout)
 
-    def rand_ind(self, t=2):
-
+    def rand_ind(self):
         # the total amount of every production is separated to some parts randomly.
         customer_li = [key for key in self.customer]
         random.shuffle(customer_li)
 
-        if t == 1:
-            assignment = [customer_li,
-                          [random.choice([key for key in self.satellite]) for _ in range(len(self.customer))]]
-            # sorted or not ? --> not ! then just mutation/crossover assignment[1]
+        assignment = OrderedDict({customer: [satellite]
+                                  for customer, satellite
+                                  in zip(customer_li,
+                                  [random.choice([key for key in self.satellite]) for _ in range(len(self.customer))])})
+        for key in assignment:
             for i in range(len(self.depot)):
-                assignment.append([random.randrange(0, 20) for _ in range(len(self.customer))])
-        else:
-            assignment = OrderedDict({customer: [satellite]
-                                      for customer, satellite
-                                      in zip(customer_li,
-                                      [random.choice([key for key in self.satellite]) for _ in range(len(self.customer))])})
-            for key in assignment:
-                for i in range(len(self.depot)):
-                    assignment[key].append(random.randrange(0,20))
+                assignment[key].append(random.randrange(0,20))
 
         d_s = self.depot_satellite_rout(assignment)
         s_c = self.satellite_customer_rout(assignment)
         individual = [assignment, d_s, s_c]
-
         return(individual)
 
     def greedy_ind(self):
@@ -187,16 +145,9 @@ class VRP2E:
         assign = ind[0]
         customer_satisfaction_dic = {i: [0] * len(self.depot) for i in self.customer}
 
-        if type(assign) == list:
-            for i in range(len(assign[0])):
-                customer = assign[0][i]
-                for j in range(len(self.depot)):
-                    customer_satisfaction_dic[customer][j] = (assign[j+2][i]) / self.customer[customer][1][j]
-        else:
-            for key in assign:
-                for j in range(len(self.depot)):
-                    customer_satisfaction_dic[key][j] = assign[key][j+1] / self.customer[key][1][j]
-
+        for key in assign:
+            for j in range(len(self.depot)):
+                customer_satisfaction_dic[key][j] = assign[key][j+1] / self.customer[key][1][j]
 
         customer_satisfaction_dic = {i:[customer_satisfaction_dic[i], sum(customer_satisfaction_dic[i])]
                                      for i in customer_satisfaction_dic}  # different production share same weight
@@ -304,12 +255,18 @@ def main():
     v = VRP2E()
     pop = v.rand_pop()
     for ind in pop:
-        assign_dic = ind[0]
-        assign_li = v.dic_to_list(assign_dic)
-        if v.depot_satellite_rout(assign_dic) == v.depot_satellite_rout(assign_li):
-            pass
-        if v.satellite_customer_rout(assign_dic) == v.satellite_customer_rout(assign_li):
-            pass
+        print(ind[0])
+
+
+
+    # # test assignment_dict assignment_list
+    # for ind in pop:
+    #     assign_dic = ind[0]
+    #     assign_li = v.dic_to_list(assign_dic)
+    #     if v.depot_satellite_rout(assign_dic) == v.depot_satellite_rout(assign_li):
+    #         pass
+    #     if v.satellite_customer_rout(assign_dic) == v.satellite_customer_rout(assign_li):
+    #         pass
 
 
 
