@@ -5,6 +5,8 @@ import math
 import time
 import itertools
 from collections import OrderedDict
+import profile
+import copy
 
 
 random.seed(1)
@@ -35,9 +37,10 @@ class VRP2E:
                 self.loc[i] = data[i][0]
 
         # evolutionary algorithm parameter
-        self.pop_size = 1000
+        self.pop_size = 5
         self.f = 0.05
         self.mutt_prob = 0.05
+        self.violation_weigh = 0.5
 
     def satellite_production_amount(self, assignment):
         result_dic = {i: [0] * len(self.depot) for i in self.satellite}
@@ -60,7 +63,7 @@ class VRP2E:
             s = assignment[key][0]
             if s not in satellite_li:
                 satellite_li.append(s)
-
+        # print(satellite_li)
         depot_satellite_rout = []
         for depot in self.depot:
             depot_satellite_rout.append('/')
@@ -75,6 +78,7 @@ class VRP2E:
                     temp_cap = spa[satellite][depot]
                     depot_satellite_rout.append(depot)  # ('*')
                     depot_satellite_rout.append(satellite)
+        # print(depot_satellite_rout)
         return(depot_satellite_rout)
 
     def satellite_customer_rout(self, assignment):
@@ -82,11 +86,12 @@ class VRP2E:
         cpt = self.customer_production_total(assignment)
 
         satellite_customer_assignment = {stl: [] for stl in self.satellite}
+        # satellite_customer_assignment = {assignment[key][0] for key in assignment}
         for stl in self.satellite:
             for key in assignment:
                 if stl == assignment[key][0]:
                     satellite_customer_assignment[stl].append(key)
-
+        # print(satellite_customer_assignment)
         satellite_customer_rout = []
         for stl in self.satellite:
             satellite_customer_rout.append('/')
@@ -100,6 +105,7 @@ class VRP2E:
                     temp_cap = cpt[cst]
                     satellite_customer_rout.append(stl)  # ('*')
                     satellite_customer_rout.append(cst)
+        # print(satellite_customer_rout)
         return(satellite_customer_rout)
 
     def rand_ind(self):
@@ -111,6 +117,7 @@ class VRP2E:
                                   for customer, satellite
                                   in zip(customer_li,
                                   [random.choice([key for key in self.satellite]) for _ in range(len(self.customer))])})
+        # print(assignment)
         for key in assignment:
             for i in range(len(self.depot)):
                 assignment[key].append(random.randrange(0,20))
@@ -156,10 +163,10 @@ class VRP2E:
     def obj_satisfaction_equity(self, ind):
         customer_satisfaction_dic = self.customer_satisfaction(ind)
         temp_li = [customer_satisfaction_dic[i][1] for i in customer_satisfaction_dic]
-        return(np.sum(temp_li), np.var(temp_li))
+        return(-np.sum(temp_li), -np.var(temp_li))
 
     def crossover(self, ind0, ind1):
-        assignment0, assignment1 = ind0[0], ind1[0]
+        assignment0, assignment1 = copy.deepcopy(ind0[0]), copy.deepcopy(ind1[0])
         customer_order = [key for key in assignment0]
         cross_start, cross_end = sorted([random.randint(0, len(customer_order) - 1),
                                          random.randint(0, len(customer_order) - 1)])
@@ -181,7 +188,8 @@ class VRP2E:
         ind1_assignment, ind2_assignment = random.choice(pop)[0], random.choice(pop)[0]
         pop_best_assignment, archive_best_assignment = pop_best[0], archive_best[0]
         ind_assignment = ind[0]
-        new_assignment = OrderedDict({key: ind_assignment[key][:] for key in ind_assignment})
+        # new_assignment = OrderedDict({key: ind_assignment[key][:] for key in ind_assignment})
+        new_assignment = copy.deepcopy(ind_assignment)
 
         # mutation of delivery amount --> follow the method of Wang(2016)(8)
         for key in new_assignment:
@@ -202,10 +210,53 @@ class VRP2E:
         new_ind = [new_assignment, depot_satellite_rout, satellite_customer_rout]
         return(new_ind)
 
-    def single_objective_evolution(self, func, pop):
+    def not_feasible(self, ind):
+        assignment = ind[0]
+
+        # satellite violation value: production amount exceed satellite capacity.
+
+        # customer violation value: production amount exceed customer need or production amount is negative.
+
+        violation_value = 0
+        return(violation_value)
+
+    def constraint_choose(self, obj_func, ind0, ind1):
+        if not self.not_feasible(ind0) and not self.not_feasible(ind1):
+            if obj_func(ind0) < obj_func(ind1):
+                chosen_one = ind0[:]
+            else:
+                chosen_one = ind1[:]
+        elif self.not_feasible(ind0) and not self.not_feasible(ind1):
+            chosen_one = ind1[:]
+        elif not self.not_feasible(ind0) and self.not_feasible(ind1):
+            chosen_one = ind0[:]
+        else:
+            if obj_func(ind0) + self.violation_weigh * self.not_feasible(ind0) \
+             < obj_func(ind1) + self.violation_weigh * self.not_feasible(ind1):
+                chosen_one = ind0[:]
+            else:
+                chosen_one = ind1[:]
+        return(chosen_one)
+
+    def single_objective_select(self, obj_func, ind1, ind2, pop):
+        if random.random() < self.mutt_prob:
+            temp_ind1, temp_ind2 = self.mutation(ind1, pop), self.mutation(ind2, pop)
+        else:
+            temp_ind1, temp_ind2 = ind1[:], ind2[:]
+        temp_pair = self.crossover(temp_ind1, temp_ind2)
+        offspring = []
+        offspring.append(self.constraint_choose(obj_func, temp_pair[0], ind1))
+        offspring.append(self.constraint_choose(obj_func, temp_pair[1], ind2))
+        return(offspring)
+
+    def single_objective_evolution(self, obj_func, pop):
         # input: population & evaluate function
         # output: the best feasible individual & offspring population
-        return()
+        offspring_population = []
+        for pair in itertools.combinations(pop, 2):
+            for a in self.single_objective_select(obj_func, pair[0], pair[1], pop):
+                offspring_population.append(a)
+        return(offspring_population)
 
     def multi_objective_evolution(self):
 
@@ -224,9 +275,25 @@ def timer(func):
 def main():
     v = VRP2E()
     pop = v.rand_pop()
-    for pair in itertools.combinations(pop, 1):
-        v.mutation(pair[0], pop)
+    for ind in pop:
+        assign, depot_satellite_rout, satellite_customer_rout = ind[0], ind[1], ind[2]
+        print(['%-2s' % a for a in assign])
+        print(['%-2s' % assign[a][0] for a in assign])
+        print(depot_satellite_rout)
+        print(satellite_customer_rout)
+        print('\n')
+    print('===' * 50)
+    new_pop = v.single_objective_evolution(v.obj_time, pop)
+    for ind in new_pop:
+        assign, depot_satellite_rout, satellite_customer_rout = ind[0], ind[1], ind[2]
+        print(['%-2s' % a for a in assign])
+        print(['%-2s' % assign[a][0] for a in assign])
+        print(depot_satellite_rout)
+        print(satellite_customer_rout)
+        print('\n')
+
 
 
 if __name__ == '__main__':
     main()
+    # profile.run('main()')
