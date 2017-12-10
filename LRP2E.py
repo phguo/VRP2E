@@ -55,7 +55,7 @@ class VRP2E:
         result_dic = {i: np.sum(assignment[i][1:]) for i in self.customer}
         return(result_dic)
 
-    def depot_satellite_rout(self, assignment):
+    def depot_satellite_rout_(self, assignment):
         # route depot -> satellite is generated according to the assignment.
         spa = self.satellite_production_amount(assignment)
         satellite_li = []
@@ -63,7 +63,7 @@ class VRP2E:
             s = assignment[key][0]
             if s not in satellite_li:
                 satellite_li.append(s)
-        # print(satellite_li)
+
         depot_satellite_rout = []
         for depot in self.depot:
             depot_satellite_rout.append('/')
@@ -78,10 +78,33 @@ class VRP2E:
                     temp_cap = spa[satellite][depot]
                     depot_satellite_rout.append(depot)  # ('*')
                     depot_satellite_rout.append(satellite)
-        # print(depot_satellite_rout)
+
         return(depot_satellite_rout)
 
-    def satellite_customer_rout(self, assignment):
+    def depot_satellite_rout(self, assignment):
+        # route depot -> satellite is generated according to the assignment.
+        spa = self.satellite_production_amount(assignment)
+        satellite_li = []
+        for key in assignment:
+            s = assignment[key][0]
+            if s not in satellite_li:
+                satellite_li.append(s)
+
+        depot_satellite_rout = {depot:[[]] for depot in self.depot}
+        for depot in self.depot:
+            temp_cap = 0
+            for satellite in satellite_li:
+                temp_cap += spa[satellite][depot]
+                if temp_cap < self.vehicle1_cap:
+                    depot_satellite_rout[depot][-1].append(satellite)
+                else:
+                    temp_cap = spa[satellite][depot]
+                    depot_satellite_rout[depot].append([])
+                    depot_satellite_rout[depot][-1].append(satellite)
+
+        return (depot_satellite_rout)
+
+    def satellite_customer_rout_(self, assignment):
         # route satellite -> customer is generated according to the assignment.
         cpt = self.customer_production_total(assignment)
 
@@ -106,6 +129,29 @@ class VRP2E:
                     satellite_customer_rout.append(stl)  # ('*')
                     satellite_customer_rout.append(cst)
         # print(satellite_customer_rout)
+        return(satellite_customer_rout)
+
+    def satellite_customer_rout(self, assignment):
+        # route satellite -> customer is generated according to the assignment.
+        cpt = self.customer_production_total(assignment)
+
+        satellite_customer_assignment = {assignment[key][0]:[] for key in assignment}
+        for stl in self.satellite:
+            for key in assignment:
+                if stl == assignment[key][0]:
+                    satellite_customer_assignment[stl].append(key)
+
+        satellite_customer_rout = {satellite:[[]] for satellite in satellite_customer_assignment}
+        for stl in satellite_customer_rout:
+            temp_cap = 0
+            for cst in satellite_customer_assignment[stl]:
+                temp_cap += cpt[cst]
+                if temp_cap < self.vehicle2_cap:
+                    satellite_customer_rout[stl][-1].append(cst)
+                else:
+                    temp_cap = cpt[cst]
+                    satellite_customer_rout[stl].append([])
+                    satellite_customer_rout[stl][-1].append(cst)
         return(satellite_customer_rout)
 
     def rand_ind(self):
@@ -134,7 +180,7 @@ class VRP2E:
     def rand_pop(self):
         return([self.rand_ind() for _ in range(self.pop_size)])
 
-    def obj_time(self, ind):
+    def obj_time_(self, ind):
         # sum(ti, for all the i)
         # customer waiting time || total vehicle traveling time ?
         obj_value_1 = 0
@@ -147,6 +193,24 @@ class VRP2E:
                           (self.loc[li[i]][0] - self.loc[li[i + 1]][0]) ** 2
                         + (self.loc[li[i]][1] - self.loc[li[i + 1]][1]) ** 2)
         return(obj_value_1)
+
+    def obj_time(self, ind):
+        obj_value = 0
+        d_s, s_c = ind[1], ind[2]
+        assert(set(d_s) & set(s_c) == set())
+        temp_dic = copy.deepcopy(d_s)
+        temp_dic.update(s_c)
+
+        for key in temp_dic:
+            for li in temp_dic[key]:
+                temp_li = [key] + li + [key]
+                for i in range(len(temp_li)):
+                    try:
+                        obj_value += math.sqrt(
+                            (self.loc[li[i]][0] - self.loc[li[i + 1]][0]) ** 2
+                          + (self.loc[li[i]][1] - self.loc[li[i + 1]][1]) ** 2)
+                    except: pass
+        return(obj_value)
 
     def customer_satisfaction(self, ind):
         assign = ind[0]
@@ -217,6 +281,10 @@ class VRP2E:
 
         # customer violation value: production amount exceed customer need or production amount is negative.
 
+        # vehicle number violation value:
+
+        # depot violation value
+
         violation_value = 0
         return(violation_value)
 
@@ -275,12 +343,16 @@ def timer(func):
 def main():
     v = VRP2E()
     pop = v.rand_pop()
+
     for ind in pop:
         assign, depot_satellite_rout, satellite_customer_rout = ind[0], ind[1], ind[2]
         print(['%-2s' % a for a in assign])
         print(['%-2s' % assign[a][0] for a in assign])
         print(depot_satellite_rout)
+        print(v.depot_satellite_rout_(assign))
         print(satellite_customer_rout)
+        print(v.satellite_customer_rout_(assign))
+        print(v.obj_time(ind))
         print('\n')
     print('===' * 50)
     new_pop = v.single_objective_evolution(v.obj_time, pop)
@@ -290,6 +362,7 @@ def main():
         print(['%-2s' % assign[a][0] for a in assign])
         print(depot_satellite_rout)
         print(satellite_customer_rout)
+        print(v.obj_time(ind))
         print('\n')
 
 
