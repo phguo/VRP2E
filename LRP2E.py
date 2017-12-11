@@ -37,7 +37,7 @@ class VRP2E:
                 self.loc[i] = data[i][0]
 
         # evolutionary algorithm parameter
-        self.pop_size = 200
+        self.pop_size = 20
         self.f = 0.05
         self.mutt_prob = 0.05
         self.violation_weigh = 0.5
@@ -103,7 +103,7 @@ class VRP2E:
         return(satellite_customer_route)
 
     def rand_ind(self):
-        # TODO the obj value should be included in ind
+        # TODO !!! the obj value should be included in ind
         # the total amount of every production is separated to some parts randomly.
         customer_li = [key for key in self.customer]
         random.shuffle(customer_li)
@@ -112,7 +112,7 @@ class VRP2E:
                                   for customer, satellite
                                   in zip(customer_li,
                                   [random.choice([key for key in self.satellite]) for _ in range(len(self.customer))])})
-        # print(assignment)
+
         for key in assignment:
             for i in range(len(self.depot)):
                 assignment[key].append(random.randrange(0,20))
@@ -120,6 +120,9 @@ class VRP2E:
         d_s = self.depot_satellite_route(assignment)
         s_c = self.satellite_customer_route(assignment)
         individual = [assignment, d_s, s_c]
+        individual += [[self.obj_time(individual),
+                       self.obj_satisfaction_equity(individual)[0],
+                       self.obj_satisfaction_equity(individual)[1]]]
         return(individual)
 
     def greedy_ind(self):
@@ -160,7 +163,7 @@ class VRP2E:
     def obj_satisfaction_equity(self, ind):
         customer_satisfaction_dic = self.customer_satisfaction(ind)
         temp_li = [customer_satisfaction_dic[i][1] for i in customer_satisfaction_dic]
-        return(-np.sum(temp_li), -np.var(temp_li))
+        return(-np.sum(temp_li), np.var(temp_li))
 
     def crossover(self, ind0, ind1):
         assignment0, assignment1 = copy.deepcopy(ind0[0]), copy.deepcopy(ind1[0])
@@ -177,6 +180,10 @@ class VRP2E:
         satellite_customer_route_1 = self.satellite_customer_route(assignment1)
         ind0_son = [assignment0, depot_satellite_route_0, satellite_customer_route_0]
         ind1_son = [assignment1, depot_satellite_route_1, satellite_customer_route_1]
+        ind0_son += [[self.obj_time(ind0_son), self.obj_satisfaction_equity(ind0_son)[0],
+                     self.obj_satisfaction_equity(ind0_son)[1]]]
+        ind1_son += [[self.obj_time(ind1_son), self.obj_satisfaction_equity(ind1_son)[0],
+                     self.obj_satisfaction_equity(ind1_son)[1]]]
         return(ind0_son, ind1_son)
 
     def mutation(self, ind, pop, pop_best=[], archive_best=[], f=0.05):
@@ -189,6 +196,7 @@ class VRP2E:
         new_assignment = copy.deepcopy(ind_assignment)
 
         # mutation of delivery amount --> follow the method of Wang(2016)(8)
+        # TODO parameter ?
         for key in new_assignment:
             for i in range(1, len(new_assignment[key])):
                 new_assignment[key][i] = ind_assignment[key][i] \
@@ -205,6 +213,8 @@ class VRP2E:
         depot_satellite_route = self.depot_satellite_route(new_assignment)
         satellite_customer_route = self.satellite_customer_route(new_assignment)
         new_ind = [new_assignment, depot_satellite_route, satellite_customer_route]
+        new_ind += [[self.obj_time(new_ind), self.obj_satisfaction_equity(new_ind)[0],
+                    self.obj_satisfaction_equity(new_ind)[1]]]
         return(new_ind)
 
     def not_feasible(self, ind):
@@ -242,15 +252,16 @@ class VRP2E:
         v_value += used_vehicle2_minus_num if used_vehicle2_minus_num > 0 else 0
 
         # weighted violation value
+        # TODO parameter ？
         violation_value = self.not_feasible_weigh['depot'] * d_value \
                         + self.not_feasible_weigh['satellite'] * s_value \
                         + self.not_feasible_weigh['customer'] * c_value \
                         + self.not_feasible_weigh['vehicle'] * v_value
         return(violation_value)
 
-    def constraint_choose(self, obj_func, ind0, ind1):
+    def constraint_choose(self, obj_index, ind0, ind1):
         if not self.not_feasible(ind0) and not self.not_feasible(ind1):
-            if obj_func(ind0) < obj_func(ind1):
+            if ind0[3][obj_index] < ind1[3][obj_index]:
                 chosen_one = ind0[:]
             else:
                 chosen_one = ind1[:]
@@ -259,37 +270,47 @@ class VRP2E:
         elif not self.not_feasible(ind0) and self.not_feasible(ind1):
             chosen_one = ind0[:]
         else:
-            if obj_func(ind0) + self.violation_weigh * self.not_feasible(ind0) \
-             < obj_func(ind1) + self.violation_weigh * self.not_feasible(ind1):
+            # TODO parameter ?
+            if ind0[3][obj_index] + self.violation_weigh * self.not_feasible(ind0) \
+             < ind1[3][obj_index] + self.violation_weigh * self.not_feasible(ind1):
                 chosen_one = ind0[:]
             else:
                 chosen_one = ind1[:]
         return(chosen_one)
 
-    def single_objective_select(self, obj_func, ind1, ind2, pop):
-        if random.random() < self.mutt_prob:
+    def single_objective_selection(self, obj_index, ind1, ind2, pop):
+        if random.random() < self.mutt_prob:  # TODO parameter ?
             temp_ind1, temp_ind2 = self.mutation(ind1, pop), self.mutation(ind2, pop)
         else:
             temp_ind1, temp_ind2 = ind1[:], ind2[:]
         temp_pair = self.crossover(temp_ind1, temp_ind2)
         offspring = []
-        offspring.append(self.constraint_choose(obj_func, temp_pair[0], ind1))
-        offspring.append(self.constraint_choose(obj_func, temp_pair[1], ind2))
+        offspring.append(self.constraint_choose(obj_index, temp_pair[0], ind1))
+        offspring.append(self.constraint_choose(obj_index, temp_pair[1], ind2))
         return(offspring)
 
-    def single_objective_evolution(self, obj_func, pop):
-        # TODO HOW to set the parameters in the evolution method ?
+    def single_objective_evolution(self, obj_index, pop):
         # input: population & evaluate function
         # output: the best feasible individual & offspring population
         offspring_population = []
         for pair in itertools.combinations(pop, 2):
             # TODO the off spring ind num may exceed the pop size.
-            for a in self.single_objective_select(obj_func, pair[0], pair[1], pop):
+            for a in self.single_objective_selection(obj_index, pair[0], pair[1], pop):
                 offspring_population.append(a)
         return(offspring_population)
 
+    def non_dominated_set(self, pop):
+        non_dominated_ind = []
+        return(non_dominated_ind)
+
+    def education(self, ind):
+        educated_ind = []
+        return(educated_ind)
+
     def multi_objective_evolution(self):
         # TODO chose the best k ind in every species, and put them into the archive set.
+        # The 'education method' is applied to the individuals in archive set.
+        # The archive set is separated into subsets of dominated one and non-dominated one.
         return()
 
 
@@ -301,34 +322,15 @@ def timer(func):
         print('time consuming:', end_time - start_time)
     return wrapTheFunction
 
-@timer
+# @timer
 def main():
     v = VRP2E()
     pop = v.rand_pop()
-
-
-
-    # for ind in pop:
-    #     assign, depot_satellite_route, satellite_customer_route = ind[0], ind[1], ind[2]
-    #     print(['%-2s' % a for a in assign])
-    #     print(['%-2s' % assign[a][0] for a in assign])
-    #     print(depot_satellite_route)
-    #     print(satellite_customer_route)
-    #     print(v.obj_time(ind))
-    #     print('\n')
-    # print('===' * 50)
-    # new_pop = v.single_objective_evolution(v.obj_time, pop)
-    # for ind in new_pop:
-    #     assign, depot_satellite_route, satellite_customer_route = ind[0], ind[1], ind[2]
-    #     print(['%-2s' % a for a in assign])
-    #     print(['%-2s' % assign[a][0] for a in assign])
-    #     print(depot_satellite_route)
-    #     print(satellite_customer_route)
-    #     print(v.obj_time(ind))
-    #     print('\n')
-
+    v.single_objective_evolution(0, pop)
 
 
 if __name__ == '__main__':
-    main()
-    # profile.run('main()')
+    # main()
+    profile.run('main()')
+
+# TODO add the "infeasible management and parameter setting" section in paper.
