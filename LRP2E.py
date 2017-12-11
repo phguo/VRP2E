@@ -37,9 +37,12 @@ class VRP2E:
                 self.loc[i] = data[i][0]
 
         # evolutionary algorithm parameter
-        self.pop_size = 20
+        self.pop_size = 100
+        self.offspring_size = 30
+        self.k = self.pop_size
         self.f = 0.05
         self.mutt_prob = 0.05
+        self.cross_prob = 0.5
         self.violation_weigh = 0.5
         self.not_feasible_weigh = {'depot':0.2, 'satellite':0.2, 'customer':0.2, 'vehicle':0.4}
 
@@ -103,7 +106,6 @@ class VRP2E:
         return(satellite_customer_route)
 
     def rand_ind(self):
-        # TODO !!! the obj value should be included in ind
         # the total amount of every production is separated to some parts randomly.
         customer_li = [key for key in self.customer]
         random.shuffle(customer_li)
@@ -279,7 +281,7 @@ class VRP2E:
         return(chosen_one)
 
     def single_objective_selection(self, obj_index, ind1, ind2, pop):
-        if random.random() < self.mutt_prob:  # TODO parameter ?
+        if random.random() < self.mutt_prob:
             temp_ind1, temp_ind2 = self.mutation(ind1, pop), self.mutation(ind2, pop)
         else:
             temp_ind1, temp_ind2 = ind1[:], ind2[:]
@@ -290,14 +292,18 @@ class VRP2E:
         return(offspring)
 
     def single_objective_evolution(self, obj_index, pop):
+        # mu + lambda evolution strategy
         # input: population & evaluate function
         # output: the best feasible individual & offspring population
         offspring_population = []
-        for pair in itertools.combinations(pop, 2):
-            # TODO the off spring ind num may exceed the pop size.
+        pairs = [sorted(random.sample(pop, 2)) for _ in range(int(self.offspring_size / 2))]
+        for pair in pairs[0:int(self.offspring_size/2)]:
             for a in self.single_objective_selection(obj_index, pair[0], pair[1], pop):
                 offspring_population.append(a)
-        return(offspring_population)
+        temp_ind_li = pop + offspring_population
+        temp_ind_li.sort(key=lambda ind: ind[3][obj_index])
+        # return the best k individual
+        return(temp_ind_li[:self.k])
 
     def non_dominated_set(self, pop):
         non_dominated_ind = []
