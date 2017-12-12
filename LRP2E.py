@@ -37,8 +37,10 @@ class VRP2E:
                 self.loc[i] = data[i][0]
 
         # evolutionary algorithm parameter
-        self.pop_size = 100
+        self.pop_size = 500
         self.offspring_size = 30
+        self.archive_size = 300
+        self.obj_num = 3
         self.k = self.pop_size
         self.f = 0.05
         self.mutt_prob = 0.05
@@ -189,7 +191,7 @@ class VRP2E:
         return(ind0_son, ind1_son)
 
     def mutation(self, ind, pop, pop_best=[], archive_best=[], f=0.05):
-        pop_best, archive_best = random.choice(pop), random.choice(pop)  # just for test
+        pop_best, archive_best = pop[0], random.choice(pop)  # just for test
 
         ind1_assignment, ind2_assignment = random.choice(pop)[0], random.choice(pop)[0]
         pop_best_assignment, archive_best_assignment = pop_best[0], archive_best[0]
@@ -296,7 +298,8 @@ class VRP2E:
         # input: population & evaluate function
         # output: the best feasible individual & offspring population
         offspring_population = []
-        pairs = [sorted(random.sample(pop, 2)) for _ in range(int(self.offspring_size / 2))]
+        pairs = [random.sample(pop, 2) for _ in range(int(self.offspring_size / 2))]
+        print(pairs)
         for pair in pairs[0:int(self.offspring_size/2)]:
             for a in self.single_objective_selection(obj_index, pair[0], pair[1], pop):
                 offspring_population.append(a)
@@ -305,19 +308,48 @@ class VRP2E:
         # return the best k individual
         return(temp_ind_li[:self.k])
 
+    def a_dominate_b(self, ind_a, ind_b):
+        for i in range(len(ind_a[3])):
+            if ind_a[3][i] <= ind_b[3][i]:
+                continue
+            else: return(False)
+        if ind_a[3] != ind_b[3]:
+            return (True)
+        else:
+            return (False)
+
     def non_dominated_set(self, pop):
         non_dominated_ind = []
-        return(non_dominated_ind)
+        dominated_ind = []
+        rank = [1] * len(pop)
+        for i in range(len(pop)):
+            temp_count = 0
+            for j in range(len(pop)):
+                if self.a_dominate_b(pop[j], pop[i]):
+                    temp_count += 1
+            if temp_count == 0:
+                non_dominated_ind.append(pop[i])
+            else:
+                dominated_ind.append(pop[i])
+        return(non_dominated_ind, dominated_ind)
 
     def education(self, ind):
         educated_ind = []
         return(educated_ind)
 
-    def multi_objective_evolution(self):
+    def multi_objective_evolution(self, best_k_s):
         # TODO chose the best k ind in every species, and put them into the archive set.
         # The 'education method' is applied to the individuals in archive set.
         # The archive set is separated into subsets of dominated one and non-dominated one.
-        return()
+        temp_archive = []
+        for li in best_k_s:
+            temp_archive += li
+        res = self.non_dominated_set(temp_archive)
+        non_dominated_ind, dominated_ind = res[0], res[1]
+        if len(non_dominated_ind) <= self.archive_size:
+            return(non_dominated_ind)
+        else:
+            return(non_dominated_ind[:self.archive_size])
 
 
 def timer(func):
@@ -328,15 +360,22 @@ def timer(func):
         print('time consuming:', end_time - start_time)
     return wrapTheFunction
 
-# @timer
+@timer
 def main():
     v = VRP2E()
-    pop = v.rand_pop()
-    v.single_objective_evolution(0, pop)
+    ini_pop = v.rand_pop()
+    for i in range(30):
+        best_k_s = []
+        for obj_index in range(3):
+            best_k_s.append(v.single_objective_evolution(0, ini_pop))
+        archive = v.multi_objective_evolution(best_k_s)
+    print(archive)
+
+
 
 
 if __name__ == '__main__':
-    # main()
-    profile.run('main()')
+    main()
+    # profile.run('main()')
 
 # TODO add the "infeasible management and parameter setting" section in paper.
