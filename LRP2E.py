@@ -11,10 +11,11 @@ import copy
 
 random.seed(1)
 # TODO use the downloaded data.
+# randomly generated data
 DEPOT_NUM, SATELLITE_NUM, CUSTOMER_NUM = 3, 5, 9
-SATELLITE_CAP, VEHICLE1_CAP, VEHICLE2_CAP = 500, 60, 60
+SATELLITE_CAP = 500
 VEHICLE1_NUM, VEHICLE2_NUM = 10, 8
-
+VEHICLE1_CAP, VEHICLE2_CAP = 60, 60
 DEPOT     = {i:((random.uniform(0, 10), random.uniform(0, 10)), 100)
              for i in range(DEPOT_NUM)}
 SATELLITE = {i:((random.uniform(0, 10), random.uniform(0, 10)), 1000)
@@ -22,31 +23,40 @@ SATELLITE = {i:((random.uniform(0, 10), random.uniform(0, 10)), 1000)
 CUSTOMER  = {i:((random.uniform(0, 10), random.uniform(0, 10)), [20] * DEPOT_NUM)
              for i in range(max(SATELLITE) + 1, max(SATELLITE) + 1 + CUSTOMER_NUM)}
 
+
+INSTANCE = {'depot': DEPOT, 'satellite': SATELLITE, 'customer': CUSTOMER,
+            'vehicle1_num': VEHICLE1_NUM, 'vehicle2_num': VEHICLE2_NUM,
+            'vehicle1_cap': VEHICLE1_CAP, 'vehicle2_cap': VEHICLE2_CAP,
+            'satellite_cap': SATELLITE_CAP}
+PARAMETERS = {'pop_size': 500, 'offspring_size': 30, 'archive_size': 300,
+              'obj_num': 3, 'f': 0.05,
+              'mutt_prob': 0.05, 'cross_prob': 0.5,
+              'violation_weigh': 0.5,
+              'not_feasible_weigh': {'depot':0.2, 'satellite':0.2, 'customer':0.2, 'vehicle':0.4}}
+
 class VRP2E:
-    def __init__(self):
-        # DATA
-        self.depot = DEPOT
-        self.satellite = SATELLITE
-        self.customer = CUSTOMER
-        self.satellite_cap = SATELLITE_CAP
-        self.vehicle1_cap, self.vehicle2_cap = VEHICLE1_CAP, VEHICLE2_CAP
-        self.vehicle1_num, self.vehicle2_num = VEHICLE1_NUM, VEHICLE2_NUM
+    def __init__(self, instance, parameters):
+        # data
+        self.depot, self.satellite, self.customer = instance['depot'], instance['satellite'], instance['customer']
+        self.vehicle1_cap, self.vehicle2_cap = instance['vehicle1_cap'], instance['vehicle2_cap']
+        self.vehicle1_num, self.vehicle2_num = instance['vehicle1_num'], instance['vehicle2_num']
+        self.satellite_cap = instance['satellite_cap']
         self.loc = {}
         for data in [self.depot, self.satellite, self.customer]:
             for i in data:
                 self.loc[i] = data[i][0]
 
-        # evolutionary algorithm parameter
-        self.pop_size = 500
-        self.offspring_size = 30
-        self.archive_size = 300
-        self.obj_num = 3
+        # evolutionary algorithm parameters
+        self.pop_size, = parameters['pop_size']
+        self.offspring_size = parameters['offspring_size']
+        self.archive_size = parameters['archive_size']
+        self.obj_num = parameters['obj_num']
         self.k = self.pop_size
-        self.f = 0.05
-        self.mutt_prob = 0.05
-        self.cross_prob = 0.5
-        self.violation_weigh = 0.5
-        self.not_feasible_weigh = {'depot':0.2, 'satellite':0.2, 'customer':0.2, 'vehicle':0.4}
+        self.f = parameters['f']
+        self.mutt_prob = parameters['mutt_prob']
+        self.cross_prob = parameters['cross_prob']
+        self.violation_weigh = parameters['violation_weigh']
+        self.not_feasible_weigh = parameters['not_feasible_weigh']
 
     def satellite_production_amount(self, assignment):
         result_dic = {i: [0] * len(self.depot) for i in self.satellite}
@@ -299,7 +309,6 @@ class VRP2E:
         # output: the best feasible individual & offspring population
         offspring_population = []
         pairs = [random.sample(pop, 2) for _ in range(int(self.offspring_size / 2))]
-        print(pairs)
         for pair in pairs[0:int(self.offspring_size/2)]:
             for a in self.single_objective_selection(obj_index, pair[0], pair[1], pop):
                 offspring_population.append(a)
@@ -321,7 +330,6 @@ class VRP2E:
     def non_dominated_set(self, pop):
         non_dominated_ind = []
         dominated_ind = []
-        rank = [1] * len(pop)
         for i in range(len(pop)):
             temp_count = 0
             for j in range(len(pop)):
@@ -362,16 +370,10 @@ def timer(func):
 
 @timer
 def main():
-    v = VRP2E()
+    v = VRP2E(INSTANCE, PARAMETERS)
     ini_pop = v.rand_pop()
-    for i in range(30):
-        best_k_s = []
-        for obj_index in range(3):
-            best_k_s.append(v.single_objective_evolution(0, ini_pop))
-        archive = v.multi_objective_evolution(best_k_s)
-    print(archive)
-
-
+    for a in ini_pop:
+        print(a)
 
 
 if __name__ == '__main__':
