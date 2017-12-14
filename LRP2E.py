@@ -10,10 +10,9 @@ import copy
 
 
 random.seed(1)
-# TODO use the downloaded data.
 # randomly generated data
 DEPOT_NUM, SATELLITE_NUM, CUSTOMER_NUM = 3, 5, 9
-SATELLITE_CAP = 500
+SATELLITE_CAP = float("inf") # 500
 VEHICLE1_NUM, VEHICLE2_NUM = 10, 8
 VEHICLE1_CAP, VEHICLE2_CAP = 60, 60
 DEPOT     = {i:((random.uniform(0, 10), random.uniform(0, 10)), 100)
@@ -47,11 +46,11 @@ class VRP2E:
                 self.loc[i] = data[i][0]
 
         # evolutionary algorithm parameters
-        self.pop_size, = parameters['pop_size']
+        self.pop_size = parameters['pop_size']
         self.offspring_size = parameters['offspring_size']
         self.archive_size = parameters['archive_size']
         self.obj_num = parameters['obj_num']
-        self.k = self.pop_size
+        self.k = 100 # self.pop_size
         self.f = parameters['f']
         self.mutt_prob = parameters['mutt_prob']
         self.cross_prob = parameters['cross_prob']
@@ -91,7 +90,9 @@ class VRP2E:
                     temp_cap = spa[satellite][depot]
                     depot_satellite_route[depot].append([])
                     depot_satellite_route[depot][-1].append(satellite)
-
+        for key in depot_satellite_route:
+            while [] in depot_satellite_route[key]:
+                depot_satellite_route[key].remove([])
         return (depot_satellite_route)
 
     def satellite_customer_route(self, assignment):
@@ -137,10 +138,7 @@ class VRP2E:
         individual += [[self.obj_time(individual),
                        self.obj_satisfaction_equity(individual)[0],
                        self.obj_satisfaction_equity(individual)[1]]]
-        return(individual)
-
-    def greedy_ind(self):
-        individual = []
+        individual += [self.not_feasible(individual)]
         return(individual)
 
     def rand_pop(self):
@@ -198,6 +196,8 @@ class VRP2E:
                      self.obj_satisfaction_equity(ind0_son)[1]]]
         ind1_son += [[self.obj_time(ind1_son), self.obj_satisfaction_equity(ind1_son)[0],
                      self.obj_satisfaction_equity(ind1_son)[1]]]
+        ind0_son += [self.not_feasible(ind0_son)]
+        ind1_son += [self.not_feasible(ind1_son)]
         return(ind0_son, ind1_son)
 
     def mutation(self, ind, pop, pop_best=[], archive_best=[], f=0.05):
@@ -210,7 +210,7 @@ class VRP2E:
         new_assignment = copy.deepcopy(ind_assignment)
 
         # mutation of delivery amount --> follow the method of Wang(2016)(8)
-        # TODO parameter ?
+        # TODO parameter ? coevolution trail vector
         for key in new_assignment:
             for i in range(1, len(new_assignment[key])):
                 new_assignment[key][i] = ind_assignment[key][i] \
@@ -229,6 +229,7 @@ class VRP2E:
         new_ind = [new_assignment, depot_satellite_route, satellite_customer_route]
         new_ind += [[self.obj_time(new_ind), self.obj_satisfaction_equity(new_ind)[0],
                     self.obj_satisfaction_equity(new_ind)[1]]]
+        new_ind += [self.not_feasible(new_ind)]
         return(new_ind)
 
     def not_feasible(self, ind):
@@ -266,7 +267,7 @@ class VRP2E:
         v_value += used_vehicle2_minus_num if used_vehicle2_minus_num > 0 else 0
 
         # weighted violation value
-        # TODO parameter ？
+        # TODO parameter ？violation_weigh lower
         violation_value = self.not_feasible_weigh['depot'] * d_value \
                         + self.not_feasible_weigh['satellite'] * s_value \
                         + self.not_feasible_weigh['customer'] * c_value \
@@ -274,19 +275,19 @@ class VRP2E:
         return(violation_value)
 
     def constraint_choose(self, obj_index, ind0, ind1):
-        if not self.not_feasible(ind0) and not self.not_feasible(ind1):
+        if not ind0[4] and not ind1[4]:
             if ind0[3][obj_index] < ind1[3][obj_index]:
                 chosen_one = ind0[:]
             else:
                 chosen_one = ind1[:]
-        elif self.not_feasible(ind0) and not self.not_feasible(ind1):
+        elif ind0[4] and not ind1[4]:
             chosen_one = ind1[:]
-        elif not self.not_feasible(ind0) and self.not_feasible(ind1):
+        elif not ind0[4] and ind1[4]:
             chosen_one = ind0[:]
         else:
-            # TODO parameter ?
-            if ind0[3][obj_index] + self.violation_weigh * self.not_feasible(ind0) \
-             < ind1[3][obj_index] + self.violation_weigh * self.not_feasible(ind1):
+            # TODO parameter ? violation_weigh upper
+            if ind0[3][obj_index] + self.violation_weigh * ind0[4] \
+             < ind1[3][obj_index] + self.violation_weigh * ind1[4]:
                 chosen_one = ind0[:]
             else:
                 chosen_one = ind1[:]
@@ -314,8 +315,12 @@ class VRP2E:
                 offspring_population.append(a)
         temp_ind_li = pop + offspring_population
         temp_ind_li.sort(key=lambda ind: ind[3][obj_index])
-        # return the best k individual
-        return(temp_ind_li[:self.k])
+        # TODO return the best k 'feasible!' individual
+        res = []
+        for ind in temp_ind_li:
+            if not ind[4]: res.append(ind)
+            if len(res) >= self.k: break
+        return(res)
 
     def a_dominate_b(self, ind_a, ind_b):
         for i in range(len(ind_a[3])):
@@ -342,11 +347,12 @@ class VRP2E:
         return(non_dominated_ind, dominated_ind)
 
     def education(self, ind):
+        # education method is applied to the k-best ind
         educated_ind = []
         return(educated_ind)
 
     def multi_objective_evolution(self, best_k_s):
-        # TODO chose the best k ind in every species, and put them into the archive set.
+        # chose the best k ind in every species, and put them into the archive set.
         # The 'education method' is applied to the individuals in archive set.
         # The archive set is separated into subsets of dominated one and non-dominated one.
         temp_archive = []
@@ -372,8 +378,9 @@ def timer(func):
 def main():
     v = VRP2E(INSTANCE, PARAMETERS)
     ini_pop = v.rand_pop()
-    for a in ini_pop:
-        print(a)
+    n = v.single_objective_evolution(0, ini_pop)
+    print(len(n))
+
 
 
 if __name__ == '__main__':
