@@ -1,14 +1,15 @@
 import os
 import LRP2E
 from matplotlib import pyplot as plt
+from collections import OrderedDict
 
 def read_data():
-    # original data is single depot & single production.
+    # single depot & single production instance
     path = './data/2evrp_instances_unified_breunig/'
     files = os.listdir(path)
     for file in files:
         file_path = path + file
-        instance = {'name': file,
+        instance = {'name': file.strip('.dat'),
                     'depot': [], 'satellite': [], 'customer': [],
                     'vehicle1_num': None, 'vehicle2_num': None,
                     'vehicle1_cap': None, 'vehicle2_cap': None,
@@ -35,33 +36,36 @@ def read_data():
                 instance['customer'].append([(int(customer_x), int(customer_y)), [int(customer_d)]])
         yield(instance)
 
+def draw_chosen():  # draw the chosen instance: set4 & set5
+    instance_dic = {}
+    for instance in read_data():
+        instance_dic[instance['name']] = instance
+    draw_li = []
+    for key in instance_dic:
+        if ('Set4' in key) and (not 'b' in key):
+            draw_li.append(key)
+    for ins_name in draw_li:
+        satellite_num = len(instance_dic[ins_name]['satellite'])
+        customer_num = len(instance_dic[ins_name]['customer'])
+        print(ins_name, satellite_num, customer_num)
+        print(ins_name)
+        instance = instance_dic[ins_name]
+        for key in ['depot', 'satellite', 'customer']:
+            x_li, y_li = [], []
+            for a in instance[key]:
+                x_li.append(a[0][0])
+                y_li.append(a[0][1])
+            plt.title("{}".format(instance['name']))
+            plt.scatter(x_li, y_li, alpha=0.5)
+        plt.savefig("{}.pdf".format(ins_name), transparent=True, bbox_inches='tight', pad_inches=0.1)
+        plt.show()
+
+
+
 def add_depot(instance):
+    # add depot & production
     new_instance = {}
     return(new_instance)
-
-PARAMETERS = {'pop_size': 500, 'offspring_size': 30, 'archive_size': 300,
-              'obj_num': 3, 'f': 0.05,
-              'mutt_prob': 0.05, 'cross_prob': 0.5,
-              'violation_weigh': 0.5,
-              'not_feasible_weigh': {'depot':0.2, 'satellite':0.2, 'customer':0.2, 'vehicle':0.4}}
-
-instance_li = []
-for instance in read_data():
-    instance_li.append(instance)
-instance_li.sort(key=lambda x:len(x['satellite']), reverse=1)
-
-
-
-for instance in instance_li:
-    for key in ['depot', 'satellite', 'customer']:
-        x_li, y_li = [], []
-        for a in instance[key]:
-            x_li.append(a[0][0])
-            y_li.append(a[0][1])
-        plt.title(instance['name'])
-        plt.scatter(x_li, y_li)
-    plt.show()
-    break
 
 
 
