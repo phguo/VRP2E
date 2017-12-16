@@ -27,12 +27,11 @@ INSTANCE = {'depot': DEPOT, 'satellite': SATELLITE, 'customer': CUSTOMER,
             'satellite_cap': SATELLITE_CAP}
 # parameters
 PARAMETERS = {'pop_size': 500, 'offspring_size': 300,
-              'archive_size': 300, 'k': 100,
+              'archive_size': 400, 'k': 300,
               'obj_num': 3, 'f': 0.05,
               'mutt_prob': 0.05, 'cross_prob': 0.5,
-              'violation_weigh': 0.5,
-              'not_feasible_weigh': {'depot':0.2, 'satellite':0.2, 'customer':0.2, 'vehicle':0.4},
-              'iter_times': 10}
+              'violation_weigh': 0.5, 'not_feasible_weigh': {'depot':0.2, 'satellite':0.2, 'customer':0.2, 'vehicle':0.4},
+              'iter_times': 50}
 
 class VRP2E:
     def __init__(self, instance, parameters):
@@ -406,9 +405,9 @@ def timer(func):
         print('time consuming:', end_time - start_time)
     return wrapTheFunction
 
-@timer
-def main():
-    v = VRP2E(INSTANCE, PARAMETERS)
+#@timer
+def main(instance, parameter):
+    v = VRP2E(instance, parameter)
     non_dominated_archive = []
     best_k_s = []
     for i in range(3):
@@ -428,7 +427,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
-    # profile.run('main()')
+    main(INSTANCE, PARAMETERS)
+    #profile.run('main()')
 
 # TODO add the "infeasible management and parameter setting" section in paper.
