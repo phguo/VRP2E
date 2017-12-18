@@ -110,7 +110,7 @@ class VRP2E:
 
         for key in assignment:
             for i in range(len(self.depot)):
-                # TODO
+                # FIXME
                 mu = self.depot[i][1] / len(self.customer)
                 sigma = mu / 3
                 assignment[key].append(np.random.normal(mu, sigma, 1)[0])
@@ -271,7 +271,7 @@ class VRP2E:
                           + self.not_feasible_weigh['customer'] * c_value \
                           + self.not_feasible_weigh['vehicle'] * v_value
 
-        # print(d_value, s_value, c_value, v_value)
+        print(d_value, s_value, c_value, v_value)
 
         return (violation_value)
 
@@ -329,13 +329,13 @@ class VRP2E:
             for a in self.single_objective_selection(obj_index, pair[0], pair[1], pop, archive):
                 offspring_population.append(a)
         new_pop = temp_pop + offspring_population
+        # remove duplicates
+        # t_pop = []
+        # for ind in new_pop:
+        #     if ind not in temp_pop:
+        #         temp_pop.append(ind)
 
-        temp_pop = []
-        for ind in new_pop:
-            if ind not in temp_pop:
-                temp_pop.append(ind)
-
-        sorted_new_pop = sorted(temp_pop, key=lambda ind: ind[3][obj_index])
+        sorted_new_pop = sorted(new_pop, key=lambda ind: ind[3][obj_index])
         # preserve the best feasible ind
         sorted_new_pop.remove(sorted_new_pop[-1])
         for ind in sorted_new_pop:
@@ -387,7 +387,7 @@ class VRP2E:
         # The 'education method' is applied to the individuals in archive set.
         # The archive set is separated into subsets of dominated one and non-dominated one.
         temp_archive = archive + best_k_s
-
+        # remove duplicates
         new_archive = []
         for ind in temp_archive:
             if not ind in new_archive:
@@ -433,6 +433,8 @@ def main(instance, parameter):
         non_dominated_archive = v.multi_objective_evolution(non_dominated_archive, best_k_s)
         print(len([a for a in non_dominated_archive if a not in temp_li]), len(non_dominated_archive))
 
+        for ind in non_dominated_archive:
+            print(ind[-2:])
     return (non_dominated_archive)
 
 
