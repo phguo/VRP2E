@@ -75,7 +75,7 @@ def make_experiment_data():
     for ins in chosen_ins_name:
         # add supply 1
         demand_li = [i[1][0] for i in set4_dic[ins]['customer']]
-        set4_dic[ins]['depot'][0][1] = 0.8 * sum(demand_li)
+        set4_dic[ins]['depot'][0][1] = 0.8 * sum(demand_li)  # FIXME
 
     chosen_ins_name = ['Set4a_Instance50-%s' % i for i in range(19, 37)]  # 19~36
     # 2,3,30 & 2,3,50  <-- 1,3,50
@@ -91,8 +91,8 @@ def make_experiment_data():
         demand_li2 = [i[1][1] for i in set4_dic[ins]['customer']]
 
         # add supply 2
-        set4_dic[ins]['depot'][0][1] = 0.8 * sum(demand_li)
-        set4_dic[ins]['depot'][1][1] = 0.8 * sum(demand_li2)
+        set4_dic[ins]['depot'][0][1] = 0.8 * sum(demand_li)  # FIXME
+        set4_dic[ins]['depot'][1][1] = 0.8 * sum(demand_li2)  # FIXME
 
 
     chosen_ins_name = ['Set4a_Instance50-%s' % i for i in range(37, 55)]  # 37~54
@@ -112,14 +112,30 @@ def make_experiment_data():
         demand_li3 = [i[1][2] for i in set4_dic[ins]['customer']]
 
         # add supply 3
-        set4_dic[ins]['depot'][0][1] = 0.8 * sum(demand_li)
-        set4_dic[ins]['depot'][1][1] = 0.8 * sum(demand_li2)
-        set4_dic[ins]['depot'][2][1] = 0.8 * sum(demand_li3)
+        set4_dic[ins]['depot'][0][1] = 0.8 * sum(demand_li)  # FIXME
+        set4_dic[ins]['depot'][1][1] = 0.8 * sum(demand_li2)  # FIXME
+        set4_dic[ins]['depot'][2][1] = 0.8 * sum(demand_li3)  # FIXME
 
     # 30 customer
     set4_dic_30 = copy.deepcopy(set4_dic)
     for ins in set4_dic_30:
         set4_dic_30[ins]['customer'] = random.sample(set4_dic_30[ins]['customer'], 30)
+    # FIXME supply_amount * 3/5
+    for ins in set4_dic_30:
+        try:
+            demand_li = [i[1][0] for i in set4_dic_30[ins]['customer']]
+            set4_dic_30[ins]['depot'][0][1] = 0.8 * sum(demand_li)
+        except: pass
+        try:
+            demand_li2 = [i[1][1] for i in set4_dic_30[ins]['customer']]
+            set4_dic_30[ins]['depot'][1][1] = 0.8 * sum(demand_li2)
+        except: pass
+        try:
+            demand_li3 = [i[1][2] for i in set4_dic_30[ins]['customer']]
+            set4_dic_30[ins]['depot'][2][1] = 0.8 * sum(demand_li3)
+        except: pass
+
+
 
     return(set4_dic, set4_dic_30)
 
@@ -134,6 +150,8 @@ def write_json_instance():
             vehicle1_num,  vehicle2_num= dic[ins]['vehicle1_num'], dic[ins]['vehicle2_num']
             vehicle1_cap, vehicle2_cap = dic[ins]['vehicle1_cap'], dic[ins]['vehicle2_cap']
             name = '{}_{}-{}-{}'.format(ins.replace('Instance50-', ''), len(depot), len(satellite), len(customer))
+            if len(name) == 14:
+                name = name[:6] + '0' + name[6:]
 
             format_depot = {i:(depot[i][0], depot[i][1]) for i in range(len(depot))}
             format_satellite = {i+len(depot):(satellite[i][0], float('inf')) for i in range(len(satellite))}
@@ -141,7 +159,7 @@ def write_json_instance():
 
             INSTANCE = {'name': name,
                         'depot': format_depot, 'satellite': format_satellite, 'customer': format_customer,
-                        'vehicle1_num': vehicle1_num * len(depot), 'vehicle2_num': vehicle2_num * len(depot),
+                        'vehicle1_num': vehicle1_num * len(depot) * 1, 'vehicle2_num': vehicle2_num * len(depot) * 1,  # FIXME
                         'vehicle1_cap': vehicle1_cap, 'vehicle2_cap': vehicle2_cap,
                         'satellite_cap': float("inf")}
 
@@ -149,12 +167,30 @@ def write_json_instance():
             with open('./test_data/{}.json'.format(name), 'wt') as f:
                 f.write(json_data)
 
-
 def load_instance_json():
     path = './test_data/'
     files = os.listdir(path)
+    files = sorted(files)
+    files = [name for name in files if not name[0] == '.']
     for file in files:
         file_path = path + file
         with open(file_path, 'r') as f:
             instance = json.load(f)
-            yield(instance)
+            for s in ['depot', 'satellite', 'customer']:
+                instance[s] = {int(key): instance[s][key] for key in instance[s]}
+            yield (instance)
+
+def draw():
+    for ins in load_instance_json():
+        name = ins['name']
+        if name in ['Set4a_44_3-5-50', 'Set4a_52_3-5-50']:
+            print(ins)
+            for key in ['depot', 'satellite', 'customer']:
+                x_li, y_li = [], []
+                for num in ins[key]:
+                    x_li.append(ins[key][num][0][0])
+                    y_li.append(ins[key][num][0][1])
+                plt.title("{}".format(ins['name']))
+                plt.scatter(x_li, y_li, alpha=0.5)
+            plt.savefig("{}.pdf".format(name), transparent=True, bbox_inches='tight', pad_inches=0.1)
+            plt.show()
