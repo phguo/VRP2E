@@ -271,7 +271,7 @@ class VRP2E:
                           + self.not_feasible_weigh['customer'] * c_value \
                           + self.not_feasible_weigh['vehicle'] * v_value
 
-        print(d_value, s_value, c_value, v_value)
+        # print(d_value, s_value, c_value, v_value)
 
         return (violation_value)
 
@@ -424,17 +424,18 @@ def main(instance, parameter):
     non_dominated_archive = v.multi_objective_evolution(non_dominated_archive, best_k_s)
 
     for _ in range(v.iter_times):
+        # print(_)
         best_k_s = []
         for i in range(3):
             obj_i_best_k, single_objective_offspring = v.single_objective_evolution(i, single_objective_offspring,
                                                                                     non_dominated_archive)
             best_k_s += obj_i_best_k
-        temp_li = non_dominated_archive[:]
+        # temp_li = non_dominated_archive[:]
         non_dominated_archive = v.multi_objective_evolution(non_dominated_archive, best_k_s)
-        print(len([a for a in non_dominated_archive if a not in temp_li]), len(non_dominated_archive))
-
-        for ind in non_dominated_archive:
-            print(ind[-2:])
+        # print(len([a for a in non_dominated_archive if a not in temp_li]), len(non_dominated_archive))
+        #
+        # for ind in non_dominated_archive:
+        #     print(ind[-2:])
     return (non_dominated_archive)
 
 
