@@ -33,8 +33,8 @@ class VRP2E:
         self.f = parameters['f']
         self.mutt_prob = parameters['mutt_prob']
         # self.cross_prob = parameters['cross_prob']
-        self.violation_weigh = parameters['violation_weigh']
-        self.not_feasible_weigh = parameters['not_feasible_weigh']
+        # self.violation_weigh = parameters['violation_weigh']
+        # self.not_feasible_weigh = parameters['not_feasible_weigh']
 
     def satellite_production_amount(self, assignment):
         result_dic = {i: [0] * len(self.depot) for i in self.satellite}
@@ -300,6 +300,7 @@ class VRP2E:
         violation_value = 0
         ind_not_feasible_li = ind[4]
         for i, li in enumerate([d_value_li, s_value_li, c_value_li, v_value_li]):
+            # equal weights
             if ind_not_feasible_li[i] == 0:
                 pass
             elif min(li) == max(li):
@@ -502,7 +503,7 @@ def main(instance, parameter):
 #                   'obj_num': 3, 'f': 0.05,
 #                   'mutt_prob': 0.05, 'cross_prob': 0.5,
 #                   'violation_weigh': 0.5,
-#                   'not_feasible_weigh': {'depot': 0.2, 'satellite': 0.2, 'customer': 0.2, 'vehicle': 0.4},
+#                   'not_feasible_weigh': {'depot': 1, 'satellite': 1, 'customer': 1, 'vehicle': 1},
 #                   'iter_times': 50}
 #
 #     main(INSTANCE, PARAMETERS)

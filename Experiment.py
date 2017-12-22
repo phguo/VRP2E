@@ -2,11 +2,12 @@ import LRP2E
 import DataPreprocessing
 import itertools
 import time
+import requests
 import json
 import traceback
 
+
 PARAMETERS = {'f': 0.5,
-              'violation_weigh': 0.5, 'not_feasible_weigh': {'depot':0.2, 'satellite':0.2, 'customer':0.2, 'vehicle':0.4},
               'pop_size': 500, 'offspring_size': 300, 'archive_size': 400, 'k': 300, 'mutt_prob': 0.3, 'iter_times': 100}
 
 def classify_ins():
@@ -40,20 +41,6 @@ def parameter_calibration():
     parameters = {}
     return(parameters)
 
-
-
-# li = classify_ins()[1]
-# for ins in li[3:]:
-#     print(ins['name'])
-#     v = LRP2E.VRP2E(ins, PARAMETERS)
-#     supply_li = [v.depot[d][1] for d in v.depot]
-#     print('supply', supply_li)
-#     for depot in v.depot:
-#         demand_li = [v.customer[cus][1][depot] for cus in v.customer]
-#         # print(demand_li)
-#         print('demand', sum(demand_li))
-#     print('=' * 30)
-
 def run(ins):
     print('==' * 40)
     print('Solving the instance:', ins['name'])
@@ -64,47 +51,51 @@ def run(ins):
         print('-' * 40)
         print(ind[1])
         print(ind[2])
-    res.append(t2 - t1)
-    print('time consuming:', t2 - t1)
-    json_data = json.dumps(res, sort_keys=True, indent=2, separators=(',', ':'))
-    with open('{}.json'.format(ins['name']), 'wt') as f:
-        f.write(json_data)
-
-
-import requests
-def sc_send(title, content='', key='SCU11157Ta6c223fc34f1d1a2936565187b49b89359a2615784ee4'):
-    url = 'http://sc.ftqq.com/' + key + '.send?text=' + title + '&desp=' + content
-    r = requests.get(url)
-    if r.status_code == 200:
-        return ('OK')
-    else:
-        return ('Opps')
-
-ins_name = 0
-try:
-    t1 = time.clock()
-    for ins in classify_ins()[0]:
-        ins_name = ins['name']
-        run(ins)
-    t2 = time.clock()
-    sc_send('第一类测试用例运行完毕', str((t2 - t1)/60) + '分钟')
-
-    t1 = time.clock()
-    for ins in classify_ins()[1]:
-        ins_name = ins['name']
-        run(ins)
-    t2 = time.clock()
-    sc_send('第二类测试用例运行完毕', str((t2 - t1)/60) + '分钟')
-
-    t1 = time.clock()
-    for ins in classify_ins()[2]:
-        ins_name = ins['name']
-        run(ins)
-    t2 = time.clock()
-    sc_send('第三类测试用例运行完毕', str((t2 - t1)/60) + '分钟')
-except:
-    title = ins_name
-    content = traceback.format_exc()
-    sc_send(title, content)
-
-
+        print(ind[3])
+        print(ind[4])
+        print(ind[5])
+#     # res.append(t2 - t1)
+#     print('time consuming:', t2 - t1)
+#     json_data = json.dumps(res, sort_keys=True, indent=2, separators=(',', ':'))
+#     with open('./res/{}.json'.format(ins['name']), 'wt') as f:
+#         f.write(json_data)
+#
+# def sc_send(title, content='', key='SCU11157Ta6c223fc34f1d1a2936565187b49b89359a2615784ee4'):
+#     url = 'http://sc.ftqq.com/' + key + '.send?text=' + title + '&desp=' + content
+#     r = requests.get(url)
+#     if r.status_code == 200:
+#         return ('OK')
+#     else:
+#         return ('Opps')
+#
+# ins_name = 'BUG'
+# try:
+#     t1 = time.clock()
+#     for ins in classify_ins()[0]:
+#         ins_name = ins['name']
+#         run(ins)
+#     t2 = time.clock()
+#     sc_send('第一类测试用例运行完毕', str((t2 - t1)/60) + '分钟')
+#
+#     t1 = time.clock()
+#     for ins in classify_ins()[1]:
+#         ins_name = ins['name']
+#         run(ins)
+#     t2 = time.clock()
+#     sc_send('第二类测试用例运行完毕', str((t2 - t1)/60) + '分钟')
+#
+#     t1 = time.clock()
+#     for ins in classify_ins()[2]:
+#         ins_name = ins['name']
+#         run(ins)
+#     t2 = time.clock()
+#     sc_send('第三类测试用例运行完毕', str((t2 - t1)/60) + '分钟')
+#
+# except:
+#     title = ins_name
+#     content = traceback.format_exc()
+#     sc_send(title, content)
+for ins in classify_ins()[2][7:]:
+    print(ins['name'])
+    run(ins)
+    break
