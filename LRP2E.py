@@ -115,7 +115,6 @@ class VRP2E:
                 sigma = mu / 3
                 assignment[key].append(np.random.normal(mu, sigma, 1)[0])
 
-
         d_s = self.depot_satellite_route(assignment)
         s_c = self.satellite_customer_route(assignment)
         individual = [assignment, d_s, s_c]
@@ -126,6 +125,10 @@ class VRP2E:
     def rand_pop(self, obj_index):
         pop = [self.rand_ind() for _ in range(self.pop_size)]
         sorted_pop = sorted(pop, key=lambda ind: ind[3][obj_index])
+
+        # standardize violation_value
+        for ind in pop:
+            ind += [self.standardize_not_feasible(ind, pop)]
         return (sorted_pop)
 
     def obj_value(self, ind):
@@ -168,7 +171,7 @@ class VRP2E:
         obj_s_e = obj_satisfaction_equity(self, ind)
         return ([obj_t, obj_s_e[0], obj_s_e[1]])
 
-    def crossover(self, ind0, ind1):
+    def crossover(self, ind0, ind1, pop):
         assignment0, assignment1 = copy.deepcopy(ind0[0]), copy.deepcopy(ind1[0])
         customer_order = [key for key in assignment0]
         cross_start, cross_end = sorted([random.randint(0, len(customer_order) - 1),
@@ -187,12 +190,17 @@ class VRP2E:
         ind1_son += [self.obj_value(ind1_son)]
         ind0_son += [self.not_feasible(ind0_son)]
         ind1_son += [self.not_feasible(ind1_son)]
+
+        # standardize violation_value
+        temp_pop = pop + [ind0_son] + [ind1_son]
+        ind0_son += [self.standardize_not_feasible(ind0_son, temp_pop)]
+        ind1_son += [self.standardize_not_feasible(ind1_son, temp_pop)]
         return (ind0_son, ind1_son)
 
     def mutation(self, ind, pop, archive):
         pop_best = random.choice(pop)
         for i in pop:
-            if not i[4]:
+            if not i[5]:
                 pop_best = i[:]
                 break
         archive_best = random.choice(archive)  # just for test
@@ -223,6 +231,10 @@ class VRP2E:
         new_ind = [new_assignment, depot_satellite_route, satellite_customer_route]
         new_ind += [self.obj_value(new_ind)]
         new_ind += [self.not_feasible(new_ind)]
+
+        # standardize violation_value
+        temp_pop = pop + [new_ind]
+        new_ind += [self.standardize_not_feasible(new_ind, temp_pop)]
         return (new_ind)
 
     def not_feasible(self, ind):
@@ -265,30 +277,56 @@ class VRP2E:
         v_value += used_vehicle2_minus_num if used_vehicle2_minus_num > 0 else 0
 
         # weighted violation value
-        # TODO parameter ？violation_weigh lower
-        violation_value = self.not_feasible_weigh['depot'] * d_value \
-                          + self.not_feasible_weigh['satellite'] * s_value \
-                          + self.not_feasible_weigh['customer'] * c_value \
-                          + self.not_feasible_weigh['vehicle'] * v_value
+        # violation_value = self.not_feasible_weigh['depot'] * d_value \
+        #                   + self.not_feasible_weigh['satellite'] * s_value \
+        #                   + self.not_feasible_weigh['customer'] * c_value \
+        #                   + self.not_feasible_weigh['vehicle'] * v_value
 
         # print(d_value, s_value, c_value, v_value)
+        # return (violation_value)
+        return([d_value, s_value, c_value, v_value])
 
-        return (violation_value)
+    def standardize_not_feasible(self, ind, pop):
+        # not_feasible should be a 1*4 list
+        temp_pop = pop + [ind]
+        d_value_li, s_value_li, c_value_li, v_value_li = [], [], [], []
+        for i in temp_pop:
+            not_feasible_li = i[4]
+            d_value_li.append(not_feasible_li[0])
+            s_value_li.append(not_feasible_li[1])
+            c_value_li.append(not_feasible_li[2])
+            v_value_li.append(not_feasible_li[3])
+
+        violation_value = 0
+        ind_not_feasible_li = ind[4]
+        for i, li in enumerate([d_value_li, s_value_li, c_value_li, v_value_li]):
+            if ind_not_feasible_li[i] == 0:
+                pass
+            elif min(li) == max(li):
+                violation_value += 1
+            elif not sum([abs(a) for a in li]) == 0:
+                violation_value += (ind_not_feasible_li[i] - min(li)) / (max(li) - min(li))
+        print(violation_value, ind_not_feasible_li)
+        return(violation_value)
 
     def constraint_choose(self, obj_index, ind0, ind1):
-        if not ind0[4] and not ind1[4]:
+        if not ind0[5] and not ind1[5]:
+            # a feasible, b feasible
             if ind0[3][obj_index] < ind1[3][obj_index]:
                 chosen_one = ind0[:]
             else:
                 chosen_one = ind1[:]
-        elif ind0[4] and not ind1[4]:
+        elif ind0[5] and not ind1[5]:
+            # a not feasible, b feasible
             chosen_one = ind1[:]
-        elif not ind0[4] and ind1[4]:
+        elif not ind0[5] and ind1[5]:
+            # a feasible, b not feasible
             chosen_one = ind0[:]
         else:
-            # TODO parameter ? violation_weigh upper
-            if ind0[3][obj_index] + self.violation_weigh * ind0[4] \
-                    < ind1[3][obj_index] + self.violation_weigh * ind1[4]:
+            # a not feasible, b not feasible
+            # if ind0[3][obj_index] + self.violation_weigh * ind0[5] \
+            #         < ind1[3][obj_index] + self.violation_weigh * ind1[5]:
+            if  ind0[5] < ind1[5]:
                 chosen_one = ind0[:]
             else:
                 chosen_one = ind1[:]
@@ -300,7 +338,7 @@ class VRP2E:
             temp_ind1, temp_ind2 = self.mutation(ind1, pop, archive), self.mutation(ind2, pop, archive)
         else:
             temp_ind1, temp_ind2 = ind1[:], ind2[:]
-        temp_pair = self.crossover(temp_ind1, temp_ind2)
+        temp_pair = self.crossover(temp_ind1, temp_ind2, pop)
         offspring = []
         offspring.append(self.constraint_choose(obj_index, temp_pair[0], ind1))
         offspring.append(self.constraint_choose(obj_index, temp_pair[1], ind2))
@@ -334,19 +372,20 @@ class VRP2E:
         # for ind in new_pop:
         #     if ind not in temp_pop:
         #         temp_pop.append(ind)
-
         sorted_new_pop = sorted(new_pop, key=lambda ind: ind[3][obj_index])
+
         # preserve the best feasible ind
         sorted_new_pop.remove(sorted_new_pop[-1])
         for ind in sorted_new_pop:
-            if not ind[4]:
+            if not ind[5]:
                 sorted_new_pop.append(ind)
                 break
         sorted_new_pop = sorted(sorted_new_pop, key=lambda ind: ind[3][obj_index])
+
         # archive the k best feasible ind
         k_best = []
         for ind in sorted_new_pop:
-            if not ind[4]:
+            if not ind[5]:
                 k_best.append(ind)
             if len(k_best) >= self.k:
                 break
@@ -425,6 +464,8 @@ def main(instance, parameter):
 
     for _ in range(v.iter_times):
         # print(_)
+        if non_dominated_archive == []:  # FIXME
+            non_dominated_archive = single_objective_offspring[:]
         best_k_s = []
         for i in range(3):
             obj_i_best_k, single_objective_offspring = v.single_objective_evolution(i, single_objective_offspring,
