@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import csv
 
+
 def read_res():
     path = './res_stand/'
     files = os.listdir(path)
@@ -40,5 +41,3 @@ def write_res_analysis_csv():
         f_csv = csv.writer(f)
         f_csv.writerow(headers)
         f_csv.writerows(rows)
-
-write_res_analysis_csv()

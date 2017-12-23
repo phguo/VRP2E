@@ -8,8 +8,8 @@ from collections import OrderedDict
 import profile
 import copy
 
-random.seed(1)
 
+random.seed(1)
 
 class VRP2E:
     def __init__(self, instance, parameters):
@@ -307,7 +307,7 @@ class VRP2E:
                 violation_value += 1
             elif not sum([abs(a) for a in li]) == 0:
                 violation_value += (ind_not_feasible_li[i] - min(li)) / (max(li) - min(li))
-        print(violation_value, ind_not_feasible_li)
+        # print(violation_value, ind_not_feasible_li)
         return(violation_value)
 
     def constraint_choose(self, obj_index, ind0, ind1):
