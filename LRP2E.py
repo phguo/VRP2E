@@ -165,7 +165,7 @@ class VRP2E:
         def obj_satisfaction_equity(self, ind):
             customer_satisfaction_dic = customer_satisfaction(self, ind)
             temp_li = [customer_satisfaction_dic[i][1] for i in customer_satisfaction_dic]
-            return (-np.sum(temp_li) / len(self.depot) / len(self.customer), np.var(temp_li))
+            return (-np.sum(temp_li), np.var(temp_li))
 
         obj_t = self.obj_time(ind)
         obj_s_e = obj_satisfaction_equity(self, ind)
