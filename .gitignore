@@ -4,7 +4,10 @@ ins_res_analysis.csv
 ins_res_analysis_500iter.csv
 res_analysis.csv
 test.py
-/*
+*/
+
+# Mac
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
