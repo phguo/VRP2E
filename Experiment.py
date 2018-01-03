@@ -4,6 +4,7 @@ import time
 import requests
 import json
 import traceback
+import key
 
 
 def classify_ins():
@@ -27,15 +28,15 @@ def run(ins):
     print('==' * 40)
     print('Solving the instance:', ins['name'])
     t1 = time.clock()
-    res = LRP2E.main(ins, PARAMETERS)
+    res = LRP2E.main(ins, PARAMETERS, 1)
     t2 = time.clock()
     res.append(t2 - t1)
     print('time consuming:', t2 - t1)
     json_data = json.dumps(res, sort_keys=True, indent=2, separators=(',', ':'))
-    with open('./res_stand/{}.json'.format(ins['name']), 'wt') as f:
+    with open('./res_stand_separate/{}.json'.format(ins['name']), 'wt') as f:
         f.write(json_data)
 
-def sc_send(title, content='', key='SCU11157Ta6c223fc34f1d1a2936565187b49b89359a2615784ee4'):
+def sc_send(title, content='', key=key.sc_key):
     url = 'http://sc.ftqq.com/' + key + '.send?text=' + title + '&desp=' + content
     r = requests.get(url)
     if r.status_code == 200:

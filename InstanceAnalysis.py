@@ -12,6 +12,7 @@ import traceback
 import pandas as pd
 import csv
 import numpy as np
+import key
 
 random.seed(1)
 
@@ -24,7 +25,7 @@ depot_li = ['成都站', '双流县']
 # city_li.extend(depot_li)
 
 
-def a_map_location(city, a_map_key=''):
+def a_map_location(city, a_map_key=key.a_map_key):
     r = requests.get('http://restapi.amap.com/v3/geocode/geo?address={0}&output=JSON&key={1}'.format(city, a_map_key))
     json_data = r.text
     text = demjson.decode(json_data)
@@ -37,7 +38,7 @@ def a_map_location(city, a_map_key=''):
         return ('erro')
 
 
-def google_map_location(city, google_map_key=''):
+def google_map_location(city, google_map_key=key.google_map_key):
     url = 'https://maps.googleapis.com/maps/api/geocode/json?address={}&key={}'.format(city, google_map_key)
     r = requests.get(url)
     json_data = r.text
@@ -50,7 +51,7 @@ def google_map_location(city, google_map_key=''):
         return ('erro')
 
 
-def google_map_draw(google_map_key=''):
+def google_map_draw(google_map_key=key.google_map_key):
     # center = '31.0691798,103.89736454'
     center = '31.55819106,103.92717715'
     size = '640x480'
@@ -145,16 +146,16 @@ def run(ins):
     print('==' * 40)
     print('Solving the instance:', ins['name'])
     t1 = time.clock()
-    res = LRP2E.main(ins, PARAMETERS)
+    res = LRP2E.main(ins, PARAMETERS, 1)
     t2 = time.clock()
     res.append(t2 - t1)
     print('time consuming:', t2 - t1)
     json_data = json.dumps(res, sort_keys=True, indent=2, separators=(',', ':'))
-    with open('./ins_res_stand_500iter/{}.json'.format(ins['name']), 'wt') as f:
+    with open('./ins_res_stand_separate/{}.json'.format(ins['name']), 'wt') as f:
         f.write(json_data)
 
 
-def sc_send(title, content='', key=''):
+def sc_send(title, content='', key=key.sc_key):
     url = 'http://sc.ftqq.com/' + key + '.send?text=' + title + '&desp=' + content
     r = requests.get(url)
     if r.status_code == 200:
@@ -179,12 +180,15 @@ def main():
         sc_send(title, content)
 
 
-def read_res():
-    path = './ins_res_stand/'
+def read_res(separate):
+    if separate:
+        path = './ins_res_stand_separate/'
+    else:
+        path = './ins_res_stand/'
     files = os.listdir(path)
     files = sorted(files, key=lambda file_name: file_name)
     files = [name for name in files if not name[0] == '.']
-
+    print(files)
     for file in files:
         file_path = path + file
         with open(file_path, 'r') as f:
@@ -218,45 +222,68 @@ def write_res_analysis_csv():
         f_csv.writerows(rows)
 
 
-def make_single_depot_instance():
-    for ins in load_instance_json():
-        new_ins1 = copy.deepcopy(ins)
-        new_ins2 = copy.deepcopy(ins)
-    return (new_ins1, new_ins2)
+def draw_boxplot(obj, obj_indx):  # title file_name y_label
+    meanlineprops = dict(linestyle='-', linewidth=1, color='red')
+    medianprops = dict(linestyle='-', linewidth=2, color='black')
+    whiskerprops = dict(linestyle='--')
+    flierprops = dict(marker='x', markerfacecolor='k', markersize=5, linestyle='none')
+    meanprops = dict(marker='d', markeredgecolor='r', markerfacecolor='red', markersize=3)
+
+    labels = ['5:5', '5:5', '6:4', '6:4', '7:3', '7:3', '8:2', '8:2', '9:1', '9:1']
+    fig2, ax = plt.subplots(nrows=1, ncols=1)
+    ax.set_title('F{}'.format(str(obj_indx + 1)))
+    # plt.plot([1,  3,  5,  7,  9], [np.mean(obj[i]) for i in range(len(obj)) if i % 2 == 0], color='k')
+    # plt.plot([2,  4,  6,  8,  10], [np.mean(obj[i]) for i in range(len(obj)) if i % 2 != 0], color='k')
+
+    bplot = ax.boxplot(obj, notch=1, medianprops=medianprops, widths=0.45, showfliers=True, flierprops=flierprops,
+                       patch_artist=1,
+                       whiskerprops=whiskerprops, meanprops=meanlineprops, showmeans=True, meanline=True)
+
+    colors = ['slategrey', 'white'] * 5
+    for patch, color in zip(bplot['boxes'], colors):
+        patch.set_facecolor(color)
+    ax.set_xlabel('product A : product B')
+    ax.set_ylabel('F{} value'.format(str(obj_indx + 1)))
+    plt.setp(ax, xticks=[i + 1 for i in range(len(obj))], xticklabels=labels)
+    plt.savefig('{}.pdf'.format(str(obj_indx + 1)), bbox_inches='tight', transparent=True, pad_inches=0.1)
+    plt.show()
 
 
-def draw_boxplot():
+def obj_boxplot():
     for obj_indx in range(3):
         obj = []
-        for file_name, res_li in read_res():
-            li = []
-            if obj_indx != 1:
-                for res in res_li[:-1]:
-                    li.append(abs(res[3][obj_indx]))
-            else:
-                for res in res_li[:-1]:
-                    li.append(abs(res[3][obj_indx]) / (len(depot_loc) * len(city_loc)))
-            obj.append(li)
+        for i in [0, 1]:
+            for file_name, res_li in read_res(i):
+                li = []
+                if obj_indx != 1:
+                    for res in res_li[:-1]:
+                        li.append(abs(res[3][obj_indx]))
+                else:
+                    for res in res_li[:-1]:
+                        li.append(abs(res[3][obj_indx]) / (len(depot_loc) * len(city_loc)))
+                obj.append(li)
+        temp_li = []
+        for i in range(0, 5):
+            temp_li.append(obj[i])
+            temp_li.append(obj[i + 5])
+        obj = temp_li[:]
+        draw_boxplot(obj, obj_indx)
 
-        meanlineprops = dict(linestyle='-', linewidth=1, color='red')
-        medianprops = dict(linestyle='-', linewidth=2, color='black')
-        whiskerprops = dict(linestyle='--')
-        labels = ['5:5', '6:4', '7:3', '8:2', '9:1']
-        fig2, ax2 = plt.subplots()
-        ax2.set_title('F{}'.format(str(obj_indx + 1)))
-        ax2.boxplot(obj, notch=1, medianprops=medianprops, widths=0.3, showfliers=0, patch_artist=1,
-                    whiskerprops=whiskerprops, meanprops=meanlineprops, showmeans=True, meanline=True, labels=labels)
 
-        plt.savefig('{}.pdf'.format(str(obj_indx + 1)), bbox_inches='tight',  transparent=True, pad_inches=0.1)
-        plt.show()
+def res_analysis():
+    for res in read_res(1):
+        name, res_li = res[0], res[1]
+        print(name)
+        for a in res_li[:-1]:
+            print(a[2])
 
 
 if __name__ == '__main__':
     # make_instance()
     # main()
     # write_res_analysis_csv()
-    draw_boxplot()
-
+    # res_analysis()
+    obj_boxplot()
 # img = mpimg.imread('s_picture_satellite.png')
 # print(img[0][1])
 # plt.imshow(img, alpha=0.9)

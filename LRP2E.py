@@ -9,6 +9,7 @@ import profile
 import copy
 
 random.seed(1)
+np.random.seed(2)
 
 
 class VRP2E:
