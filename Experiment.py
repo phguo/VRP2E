@@ -19,23 +19,6 @@ def classify_ins():
             ins_li[2].append((ins))
     return(ins_li)
 
-def parameter_calibration():
-    f1 = [i/10 for i in range(3, 8)]
-    f2, f3 = f1[:], f1[:]
-    violation_weigh = 1
-    depot_violation = []
-    satellite_violation = 0
-    customer_violation = []
-    vehicle_violation = []
-
-    pop_size = []
-    offspring_size = []
-    archive_size = []
-    k = []
-    mutt_prob = []
-    iter_times = 1000
-    parameters = {}
-    return(parameters)
 
 def run(ins):
     PARAMETERS = {'f': 0.5,
