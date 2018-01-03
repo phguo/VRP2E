@@ -8,8 +8,8 @@ from collections import OrderedDict
 import profile
 import copy
 
-
 random.seed(1)
+
 
 class VRP2E:
     def __init__(self, instance, parameters):
@@ -89,7 +89,7 @@ class VRP2E:
             temp_cap = 0
             for cst in satellite_customer_assignment[stl]:
                 temp_cap += cpt[cst]
-                if temp_cap < self.vehicle2_cap:
+                if temp_cap <= self.vehicle2_cap:
                     satellite_customer_route[stl][-1].append(cst)
                 else:
                     temp_cap = cpt[cst]
@@ -131,23 +131,23 @@ class VRP2E:
             ind += [self.standardize_not_feasible(ind, pop)]
         return (sorted_pop)
 
+    def obj_time(self, ind):
+        obj_value = 0
+        d_s, s_c = ind[1], ind[2]
+        assert (set(d_s) & set(s_c) == set())
+        temp_dic = copy.deepcopy(d_s)
+        temp_dic.update(s_c)
+
+        for key in temp_dic:
+            for li in temp_dic[key]:
+                temp_li = [key] + li + [key]
+                for i in range(len(temp_li) - 1):
+                    obj_value += math.sqrt(
+                        (self.loc[temp_li[i]][0] - self.loc[temp_li[i + 1]][0]) ** 2
+                        + (self.loc[temp_li[i]][1] - self.loc[temp_li[i + 1]][1]) ** 2)
+        return (obj_value)
+
     def obj_value(self, ind):
-        def obj_time(self, ind):
-            obj_value = 0
-            d_s, s_c = ind[1], ind[2]
-            assert (set(d_s) & set(s_c) == set())
-            temp_dic = copy.deepcopy(d_s)
-            temp_dic.update(s_c)
-
-            for key in temp_dic:
-                for li in temp_dic[key]:
-                    temp_li = [key] + li + [key]
-                    for i in range(len(temp_li) - 1):
-                        obj_value += math.sqrt(
-                            (self.loc[temp_li[i]][0] - self.loc[temp_li[i + 1]][0]) ** 2
-                            + (self.loc[temp_li[i]][1] - self.loc[temp_li[i + 1]][1]) ** 2)
-            return (obj_value)
-
         def customer_satisfaction(self, ind):
             assign = ind[0]
             customer_satisfaction_dic = {i: [0] * len(self.depot) for i in self.customer}
@@ -165,9 +165,9 @@ class VRP2E:
         def obj_satisfaction_equity(self, ind):
             customer_satisfaction_dic = customer_satisfaction(self, ind)
             temp_li = [customer_satisfaction_dic[i][1] for i in customer_satisfaction_dic]
-            return (-np.sum(temp_li), np.var(temp_li))
+            return (-np.sum(temp_li) / len(self.depot) / len(self.customer), np.var(temp_li))
 
-        obj_t = obj_time(self, ind)
+        obj_t = self.obj_time(ind)
         obj_s_e = obj_satisfaction_equity(self, ind)
         return ([obj_t, obj_s_e[0], obj_s_e[1]])
 
@@ -284,7 +284,7 @@ class VRP2E:
 
         # print(d_value, s_value, c_value, v_value)
         # return (violation_value)
-        return([d_value, s_value, c_value, v_value])
+        return ([d_value, s_value, c_value, v_value])
 
     def standardize_not_feasible(self, ind, pop):
         # not_feasible should be a 1*4 list
@@ -308,7 +308,7 @@ class VRP2E:
             elif not sum([abs(a) for a in li]) == 0:
                 violation_value += (ind_not_feasible_li[i] - min(li)) / (max(li) - min(li))
         # print(violation_value, ind_not_feasible_li)
-        return(violation_value)
+        return (violation_value)
 
     def constraint_choose(self, obj_index, ind0, ind1):
         if not ind0[5] and not ind1[5]:
@@ -327,7 +327,7 @@ class VRP2E:
             # a not feasible, b not feasible
             # if ind0[3][obj_index] + self.violation_weigh * ind0[5] \
             #         < ind1[3][obj_index] + self.violation_weigh * ind1[5]:
-            if  ind0[5] < ind1[5]:
+            if ind0[5] < ind1[5]:
                 chosen_one = ind0[:]
             else:
                 chosen_one = ind1[:]
@@ -442,6 +442,39 @@ class VRP2E:
             return (non_dominated_ind[:self.archive_size])
 
 
+class VRP2E1C(VRP2E):
+
+    def satellite_customer_route(self, assignment):
+        #  TODO different commodity of a customer node is supplied by the same satellite nodes.
+        # route satellite -> customer is generated according to the assignment.
+        customer_production_amount = OrderedDict({key: assignment[key][1:] for key in assignment})
+
+        satellite_customer_assignment = {assignment[key][0]: [] for key in assignment}
+        for satellite in self.satellite:
+            for key in assignment:
+                if satellite == assignment[key][0]:
+                    satellite_customer_assignment[satellite].append(key)
+
+        satellite_customer_route = {satellite: [[]] for satellite in satellite_customer_assignment}
+
+        for satellite in satellite_customer_route:
+            for product_id in self.depot:
+                temp_cap = 0
+                for customer in satellite_customer_assignment[satellite]:
+                    temp_cap += customer_production_amount[customer][product_id]
+                    if temp_cap <= self.vehicle2_cap:
+                        satellite_customer_route[satellite][-1].append(customer)
+                    else:
+                        temp_cap = customer_production_amount[customer][product_id]
+                        satellite_customer_route[satellite].append([])
+                        satellite_customer_route[satellite][-1].append(customer)
+                satellite_customer_route[satellite].append([])
+        for key in satellite_customer_route:
+            while [] in satellite_customer_route[key]:
+                satellite_customer_route[key].remove([])
+        return (satellite_customer_route)
+
+
 def timer(func):
     def wrapTheFunction():
         start_time = time.clock()
@@ -453,8 +486,11 @@ def timer(func):
 
 
 # @timer
-def main(instance, parameter):
-    v = VRP2E(instance, parameter)
+def main(instance, parameter, separate=False):
+    if not separate:
+        v = VRP2E(instance, parameter)
+    else:
+        v = VRP2E1C(instance, parameter)
     non_dominated_archive = []
     best_k_s = []
     for i in range(3):
@@ -464,7 +500,6 @@ def main(instance, parameter):
     non_dominated_archive = v.multi_objective_evolution(non_dominated_archive, best_k_s)
 
     for _ in range(v.iter_times):
-        # print(_)
         if non_dominated_archive == []:  # FIXME
             non_dominated_archive = single_objective_offspring[:]
         best_k_s = []
@@ -472,42 +507,41 @@ def main(instance, parameter):
             obj_i_best_k, single_objective_offspring = v.single_objective_evolution(i, single_objective_offspring,
                                                                                     non_dominated_archive)
             best_k_s += obj_i_best_k
-        # temp_li = non_dominated_archive[:]
         non_dominated_archive = v.multi_objective_evolution(non_dominated_archive, best_k_s)
-        # print(len([a for a in non_dominated_archive if a not in temp_li]), len(non_dominated_archive))
-        #
-        # for ind in non_dominated_archive:
-        #     print(ind[-2:])
     return (non_dominated_archive)
 
 
-# if __name__ == '__main__':
-#     # randomly generated data
-#     DEPOT_NUM, SATELLITE_NUM, CUSTOMER_NUM = 3, 5, 9
-#     SATELLITE_CAP = float("inf")  # 500
-#     VEHICLE1_NUM, VEHICLE2_NUM = 10, 8
-#     VEHICLE1_CAP, VEHICLE2_CAP = 60, 60
-#     DEPOT = {i: ((random.uniform(0, 10), random.uniform(0, 10)), 100)
-#              for i in range(DEPOT_NUM)}
-#     SATELLITE = {i: ((random.uniform(0, 10), random.uniform(0, 10)), 1000)
-#                  for i in range(max(DEPOT) + 1, max(DEPOT) + 1 + SATELLITE_NUM)}
-#     CUSTOMER = {i: ((random.uniform(0, 10), random.uniform(0, 10)), [20] * DEPOT_NUM)
-#                 for i in range(max(SATELLITE) + 1, max(SATELLITE) + 1 + CUSTOMER_NUM)}
-#     INSTANCE = {'depot': DEPOT, 'satellite': SATELLITE, 'customer': CUSTOMER,
-#                 'vehicle1_num': VEHICLE1_NUM, 'vehicle2_num': VEHICLE2_NUM,
-#                 'vehicle1_cap': VEHICLE1_CAP, 'vehicle2_cap': VEHICLE2_CAP,
-#                 'satellite_cap': SATELLITE_CAP}
-#     # parameters
-#     PARAMETERS = {'pop_size': 500, 'offspring_size': 300,
-#                   'archive_size': 400, 'k': 300,
-#                   'obj_num': 3, 'f': 0.05,
-#                   'mutt_prob': 0.05, 'cross_prob': 0.5,
-#                   'violation_weigh': 0.5,
-#                   'not_feasible_weigh': {'depot': 1, 'satellite': 1, 'customer': 1, 'vehicle': 1},
-#                   'iter_times': 50}
-#
-#     main(INSTANCE, PARAMETERS)
-#     # profile.run('main()')
+def random_data_experiment():
+    # randomly generated data
+    DEPOT_NUM, SATELLITE_NUM, CUSTOMER_NUM = 3, 5, 15
+    SATELLITE_CAP = float("inf")  # 500
+    VEHICLE1_NUM, VEHICLE2_NUM = 10, 8
+    VEHICLE1_CAP, VEHICLE2_CAP = 60, 60
+    DEPOT = {i: ((random.uniform(0, 10), random.uniform(0, 10)), 100)
+             for i in range(DEPOT_NUM)}
+    SATELLITE = {i: ((random.uniform(0, 10), random.uniform(0, 10)), 1000)
+                 for i in range(max(DEPOT) + 1, max(DEPOT) + 1 + SATELLITE_NUM)}
+    CUSTOMER = {i: ((random.uniform(0, 10), random.uniform(0, 10)), [20] * DEPOT_NUM)
+                for i in range(max(SATELLITE) + 1, max(SATELLITE) + 1 + CUSTOMER_NUM)}
+    INSTANCE = {'depot': DEPOT, 'satellite': SATELLITE, 'customer': CUSTOMER,
+                'vehicle1_num': VEHICLE1_NUM, 'vehicle2_num': VEHICLE2_NUM,
+                'vehicle1_cap': VEHICLE1_CAP, 'vehicle2_cap': VEHICLE2_CAP,
+                'satellite_cap': SATELLITE_CAP}
+    # parameters
+    PARAMETERS = {'pop_size': 500, 'offspring_size': 300,
+                  'archive_size': 400, 'k': 300,
+                  'obj_num': 3, 'f': 0.05,
+                  'mutt_prob': 0.05, 'cross_prob': 0.5,
+                  'violation_weigh': 0.5,
+                  'not_feasible_weigh': {'depot': 1, 'satellite': 1, 'customer': 1, 'vehicle': 1},
+                  'iter_times': 50}
+
+    main(INSTANCE, PARAMETERS)
+    # profile.run('main()')
+
+
+if __name__ == '__main__':
+    pass
 
 # TODO add the "infeasible management and parameter setting" section in paper.
 # TODO modify the depot-satellite route generate strategy (single depot VRP * len(self.depot)). paper
