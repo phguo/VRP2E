@@ -170,8 +170,8 @@ def write_json_instance():
 def load_instance_json():
     path = './test_data/'
     files = os.listdir(path)
-    files = sorted(files)
     files = [name for name in files if not name[0] == '.']
+    files = sorted(files, key=lambda file_name: file_name[9:] + file_name[6:8])
     for file in files:
         file_path = path + file
         with open(file_path, 'r') as f:
@@ -194,3 +194,18 @@ def draw():
                 plt.scatter(x_li, y_li, alpha=0.5)
             plt.savefig("{}.pdf".format(name), transparent=True, bbox_inches='tight', pad_inches=0.1)
             plt.show()
+
+if __name__ == '__main__':
+    for ins in load_instance_json():
+        if int(ins['name'][6:8]) % 2 == 0:
+            ins_name = ins['name']
+            supply = [ins['depot'][key][1] for key in ins['depot']]
+            vehicle1_num, vehicle2_num = ins['vehicle1_num'], ins['vehicle2_num']
+            vehicle1_cap, vehicle2_cap = ins['vehicle1_cap'], ins['vehicle2_cap']
+            supply1 = supply[0]
+            try: supply2 = supply[1]
+            except: supply2 = 0
+            try: supply3 = supply[2]
+            except: supply3 = 0
+            print('{},{},{},{},{},{},{},{}'.format(ins_name, str(vehicle1_num), str(vehicle1_cap), str(vehicle2_num), str(vehicle2_cap),
+                                                   str(supply1), str(supply2), str(supply3)))

@@ -79,6 +79,7 @@ city_loc = {'汶川县': [103.590386, 31.476822], '茂县': [103.853522, 31.6811
 depot_loc = {'成都站': [104.07337041, 30.69681133], '双流县': [103.923651, 30.574474]}
 satellite_loc = {'A': [104.7958663, 30.98789618], 'B': [105.15353347, 31.08040717], 'C': [105.82059708, 30.9315482],
                  'D': [105.89429873, 30.00876652], 'E': [106.55353126, 31.57856261]}
+satellite_loc['E'] = [103.55353126, 30.57856261]
 
 DEPOT_NUM, SATELLITE_NUM, CUSTOMER_NUM = len(depot_loc), len(satellite_loc), len(city_loc)
 SATELLITE_CAP = float("inf")
@@ -90,12 +91,15 @@ CUSTOMER = {i: [[None, None], random.randrange(100, 1000)] for i in
             range(max(SATELLITE) + 1, max(SATELLITE) + 1 + CUSTOMER_NUM)}
 id_city_dic = {}
 for i, city in zip([i for i in CUSTOMER], [i for i in city_loc]):
+    print('{},{}'.format(i, city))
     CUSTOMER[i][0] = city_loc[city]
     id_city_dic[i] = city
 for i, city in zip([i for i in SATELLITE], [i for i in satellite_loc]):
+    print('{},{}'.format(i, city))
     SATELLITE[i][0] = satellite_loc[city]
     id_city_dic[i] = city
 for i, city in zip([i for i in DEPOT], [i for i in depot_loc]):
+    print('{},{}'.format(i, city))
     DEPOT[i][0] = depot_loc[city]
     id_city_dic[i] = city
 
@@ -122,12 +126,12 @@ def make_instance():
         ins['vehicle1_cap'], ins['vehicle2_cap'] = 6000, 2000
         ins['name'] = name
         json_data = json.dumps(ins, sort_keys=True, indent=2, separators=(',', ':'))
-        with open('./ins_analysis_data/{}.json'.format(name), 'wt') as f:
+        with open('./ins_analysis_data_/{}.json'.format(name), 'wt') as f:
             f.write(json_data)
 
 
 def load_instance_json():
-    path = './ins_analysis_data/'
+    path = './ins_analysis_data_/'
     files = os.listdir(path)
     files = sorted(files)
     files = [name for name in files if not name[0] == '.']
@@ -146,12 +150,12 @@ def run(ins):
     print('==' * 40)
     print('Solving the instance:', ins['name'])
     t1 = time.clock()
-    res = LRP2E.main(ins, PARAMETERS, 1)
+    res = LRP2E.main(ins, PARAMETERS, 0)
     t2 = time.clock()
     res.append(t2 - t1)
     print('time consuming:', t2 - t1)
     json_data = json.dumps(res, sort_keys=True, indent=2, separators=(',', ':'))
-    with open('./ins_res_stand_separate/{}.json'.format(ins['name']), 'wt') as f:
+    with open('./ins_res_stand_/{}.json'.format(ins['name']), 'wt') as f:
         f.write(json_data)
 
 
@@ -182,9 +186,9 @@ def main():
 
 def read_res(separate):
     if separate:
-        path = './ins_res_stand_separate/'
+        path = './ins_res_stand_separate_/'
     else:
-        path = './ins_res_stand/'
+        path = './ins_res_stand_/'
     files = os.listdir(path)
     files = sorted(files, key=lambda file_name: file_name)
     files = [name for name in files if not name[0] == '.']
@@ -196,33 +200,33 @@ def read_res(separate):
             yield (file, res)
 
 
-def write_res_analysis_csv():
-    headers = ['instance_name', 'non_dominated_solution_num', 'time_consuming',
-               'min_obj1', 'mean_obj1', 'median_obj1', 'max_obj1',
-               'min_obj2', 'mean_obj2', 'median_obj2', 'max_obj2',
-               'min_obj3', 'mean_obj3', 'median_obj3', 'max_obj3',
-               'evaluation1', 'evaluation2', 'evaluation3']
-    rows = []
-    for ins_name, res_li in read_res():
-        obj_values_frame = []
-        for res in res_li[:-1]:
-            obj_values = res[3]
-            obj_values_frame.append(obj_values)
-        data_frame = pd.DataFrame(obj_values_frame)
-        d = data_frame.describe()
-        row = (ins_name[:-5], len(res_li), res_li[-1],
-               d[0]['min'], d[0]['mean'], d[0]['50%'], d[0]['max'],
-               d[1]['min'], d[1]['mean'], d[1]['50%'], d[1]['max'],
-               d[2]['min'], d[2]['mean'], d[2]['50%'], d[2]['max'])
-        rows.append(row)
+# def write_res_analysis_csv():
+#     headers = ['instance_name', 'non_dominated_solution_num', 'time_consuming',
+#                'min_obj1', 'mean_obj1', 'median_obj1', 'max_obj1',
+#                'min_obj2', 'mean_obj2', 'median_obj2', 'max_obj2',
+#                'min_obj3', 'mean_obj3', 'median_obj3', 'max_obj3',
+#                'evaluation1', 'evaluation2', 'evaluation3']
+#     rows = []
+#     for ins_name, res_li in read_res():
+#         obj_values_frame = []
+#         for res in res_li[:-1]:
+#             obj_values = res[3]
+#             obj_values_frame.append(obj_values)
+#         data_frame = pd.DataFrame(obj_values_frame)
+#         d = data_frame.describe()
+#         row = (ins_name[:-5], len(res_li), res_li[-1],
+#                d[0]['min'], d[0]['mean'], d[0]['50%'], d[0]['max'],
+#                d[1]['min'], d[1]['mean'], d[1]['50%'], d[1]['max'],
+#                d[2]['min'], d[2]['mean'], d[2]['50%'], d[2]['max'])
+#         rows.append(row)
+#
+#     with open('ins_res_analysis.csv', 'w') as f:
+#         f_csv = csv.writer(f)
+#         f_csv.writerow(headers)
+#         f_csv.writerows(rows)
 
-    with open('ins_res_analysis.csv', 'w') as f:
-        f_csv = csv.writer(f)
-        f_csv.writerow(headers)
-        f_csv.writerows(rows)
 
-
-def draw_boxplot(obj, obj_indx):  # title file_name y_label
+def draw_boxplot(obj, title, file_name, ylabel):  # title file_name y_label
     meanlineprops = dict(linestyle='-', linewidth=1, color='red')
     medianprops = dict(linestyle='-', linewidth=2, color='black')
     whiskerprops = dict(linestyle='--')
@@ -231,21 +235,21 @@ def draw_boxplot(obj, obj_indx):  # title file_name y_label
 
     labels = ['5:5', '5:5', '6:4', '6:4', '7:3', '7:3', '8:2', '8:2', '9:1', '9:1']
     fig2, ax = plt.subplots(nrows=1, ncols=1)
-    ax.set_title('F{}'.format(str(obj_indx + 1)))
+    ax.set_title(title)
     # plt.plot([1,  3,  5,  7,  9], [np.mean(obj[i]) for i in range(len(obj)) if i % 2 == 0], color='k')
     # plt.plot([2,  4,  6,  8,  10], [np.mean(obj[i]) for i in range(len(obj)) if i % 2 != 0], color='k')
 
-    bplot = ax.boxplot(obj, notch=1, medianprops=medianprops, widths=0.45, showfliers=True, flierprops=flierprops,
+    bplot = ax.boxplot(obj, notch=0, medianprops=medianprops, widths=0.45, showfliers=0, flierprops=flierprops,
                        patch_artist=1,
-                       whiskerprops=whiskerprops, meanprops=meanlineprops, showmeans=True, meanline=True)
+                       whiskerprops=whiskerprops, meanprops=meanlineprops, showmeans=0, meanline=0)
 
     colors = ['slategrey', 'white'] * 5
     for patch, color in zip(bplot['boxes'], colors):
         patch.set_facecolor(color)
-    ax.set_xlabel('product A : product B')
-    ax.set_ylabel('F{} value'.format(str(obj_indx + 1)))
+    ax.set_xlabel('p1 : p2')
+    ax.set_ylabel(ylabel)
     plt.setp(ax, xticks=[i + 1 for i in range(len(obj))], xticklabels=labels)
-    plt.savefig('{}.pdf'.format(str(obj_indx + 1)), bbox_inches='tight', transparent=True, pad_inches=0.1)
+    plt.savefig(file_name, bbox_inches='tight', transparent=True, pad_inches=0.1)
     plt.show()
 
 
@@ -267,23 +271,70 @@ def obj_boxplot():
             temp_li.append(obj[i])
             temp_li.append(obj[i + 5])
         obj = temp_li[:]
-        draw_boxplot(obj, obj_indx)
+        title = 'F{}'.format(str(obj_indx + 1))
+        file_name = '{}.pdf'.format(str(obj_indx + 1))
+        ylabel = 'F{} value'.format(str(obj_indx + 1))
+        draw_boxplot(obj, title, file_name, ylabel)
 
 
-def res_analysis():
-    for res in read_res(1):
-        name, res_li = res[0], res[1]
-        print(name)
-        for a in res_li[:-1]:
-            print(a[2])
+def num_boxplot():
+    obj = []
+    for i in [0, 1]:
+        for file_name, res_li in read_res(i):
+            li = []
+            for res in res_li[:-1]:
+                # u_num = 0
+                u_num = len([key for key in res[2]])
+                # for key in res[1]:
+                #     u_num += len(res[1][key])
+                li.append(u_num)
+            obj.append(li)
+    temp_li = []
+    for i in range(0, 5):
+        temp_li.append(obj[i])
+        temp_li.append(obj[i + 5])
+    obj = temp_li[:]
+    title = 'satellite'
+    file_name = 'satellite.pdf'
+    ylabel = 'used satellite'
+    draw_boxplot(obj, title, file_name, ylabel)
 
+
+def scatter_ins():
+    for ins in load_instance_json():
+        # customer_x = [ins['customer'][key][0][0] for key in ins['customer']]
+        # customer_y = [ins['customer'][key][0][1] for key in ins['customer']]
+        # satellite_x = [ins['satellite'][key][0][0] for key in ins['satellite']]
+        # satellite_y = [ins['satellite'][key][0][1] for key in ins['satellite']]
+        # depot_x = [ins['depot'][key][0][0] for key in ins['depot']]
+        # depot_y = [ins['depot'][key][0][1] for key in ins['depot']]
+        # # [106.55353126, 31.57856261]
+        # satellite_x[-2], satellite_y[-2] = 103.55353126, 30.57856261
+        # plt.scatter(customer_x, customer_y,  marker='x', s=50, c='k', lw=1,label='demand nodes')
+        # plt.scatter(satellite_x, satellite_y,  marker='o', s=50, c='w', edgecolors='k',label='satellite nodes')
+        # plt.scatter(depot_x, depot_y,  marker='D', s=50, c='k', edgecolors='k',label='plants')
+        # plt.xlabel('latitude')
+        # plt.ylabel('longitude')
+        # plt.legend()
+        # plt.savefig('fffff.pdf', bbox_inches='tight', transparent=True, pad_inches=0.1)
+        # plt.show()
+        li = [(key, ins['customer'][key]) for key in ins['customer']]
+        for a in li:
+            print('{},{},{},{}'.format(a[0], a[1][0][0], a[1][0][1], sum(a[1][1])))
+
+        break
 
 if __name__ == '__main__':
     # make_instance()
     # main()
     # write_res_analysis_csv()
-    # res_analysis()
-    obj_boxplot()
+    num_boxplot()
+    # obj_boxplot()
+    # scatter_ins()
+    # for ins in load_instance_json():
+    #     print(ins['satellite'])
+    #     break
+
 # img = mpimg.imread('s_picture_satellite.png')
 # print(img[0][1])
 # plt.imshow(img, alpha=0.9)

@@ -72,3 +72,6 @@ def main():
         title = ins_name
         content = traceback.format_exc()
         sc_send(title, content)
+
+if __name__ == '__main__':
+    main()

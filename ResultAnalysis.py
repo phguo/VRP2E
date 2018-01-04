@@ -5,7 +5,7 @@ import csv
 
 
 def read_res():
-    path = './res_stand/'
+    path = './res_stand_separate/'
     files = os.listdir(path)
     files = sorted(files, key=lambda file_name: file_name[9:] + file_name[6:8])
     files = [name for name in files if not name[0] == '.']
@@ -37,7 +37,10 @@ def write_res_analysis_csv():
                    d[2]['min'], d[2]['mean'], d[2]['50%'], d[2]['max'])
             rows.append(row)
 
-    with open('res_analysis.csv','w') as f:
+    with open('res_analysis_separate.csv','w') as f:
         f_csv = csv.writer(f)
         f_csv.writerow(headers)
         f_csv.writerows(rows)
+
+if __name__ == '__main__':
+    write_res_analysis_csv()
