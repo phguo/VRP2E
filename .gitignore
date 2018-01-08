@@ -4,6 +4,7 @@ key.py
 *.csv
 test.py
 */
+*.png
 
 # Mac
 .DS_Store
