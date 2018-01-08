@@ -146,6 +146,7 @@ class VRP2E:
                     obj_value += math.sqrt(
                         (self.loc[temp_li[i]][0] - self.loc[temp_li[i + 1]][0]) ** 2
                         + (self.loc[temp_li[i]][1] - self.loc[temp_li[i + 1]][1]) ** 2)
+
         return (obj_value)
 
     def obj_value(self, ind):
